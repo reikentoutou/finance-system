@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+### 新增
+
+- 根目录 `pnpm run pack:bundle:win`：生成含 API + `web/dist` + 便携 exe + `start.bat` 的 **Windows 离线 zip**（目标机仍需安装 Node.js）。
+- Prisma `binaryTargets` 增加 `windows`，便于在非 Windows 上打 Windows 离线包。
+- Electron **portable** 产物文件名与 NSIS 区分（`*-Windows-Portable-*.exe`）。
+
 ### 计划中
 
 - 按需补充：图标、自动更新、签名等。

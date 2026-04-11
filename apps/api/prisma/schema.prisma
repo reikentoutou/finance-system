@@ -1,5 +1,7 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // 含 windows：在 macOS 上打 Windows 离线包时 Prisma 引擎齐全
+  binaryTargets = ["native", "windows"]
 }
 
 datasource db {

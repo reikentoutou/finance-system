@@ -45,6 +45,8 @@ git push origin v0.0.2
 
 便携版（`pack:win:portable`）当前未纳入 CI；需要时可再加一条 job 或单独工作流。
 
+**整合离线 zip**（API + 前端 + 便携 exe + `start.bat`）：在开发机执行根目录 `pnpm run pack:bundle:win`，产物为 `apps/desktop/release/FinanceSystem-Portable-Bundle-<版本>.zip`；解压说明见包内 `README-离线包说明.md`（目标机仍需安装 Node.js）。
+
 ### 权限
 
 默认使用仓库自带的 `GITHUB_TOKEN` 上传 Release，无需额外配置密钥。

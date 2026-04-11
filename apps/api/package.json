@@ -2,6 +2,7 @@
   "name": "@finance/api",
   "version": "0.0.1",
   "private": true,
+  "files": ["dist", "prisma"],
   "scripts": {
     "build": "nest build",
     "dev": "nest start --watch",

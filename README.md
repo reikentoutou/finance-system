@@ -50,6 +50,29 @@ pnpm run pack:desktop:win:portable   # 便携 exe（可选）
 
 产物目录：`apps/desktop/release/`（已 `.gitignore`，不上传仓库）。
 
+### Windows「一个下载包」（单机目录 + zip）
+
+在**开发机**（macOS / Linux / Windows 均可；已配置 Prisma `binaryTargets` 含 `windows`）仓库根目录执行：
+
+```bash
+pnpm run pack:bundle:win
+```
+
+会生成 **`apps/desktop/release/FinanceSystem-Portable-Bundle-<版本>.zip`**，解压后大致包含：
+
+| 内容 | 说明 |
+|------|------|
+| **`start.bat`** | 一键启动：API（3000）+ 静态页（5173）+ 便携 **exe** |
+| **`api/`** | 后端生产包（`pnpm deploy`） |
+| **`web/dist/`** | 已构建前端（请求 `http://127.0.0.1:3000`） |
+| **`serve-web.mjs`** | 用 Node 托管前端静态文件 |
+| **`FinanceSystem-*-Windows-Portable-*.exe`** | Electron 壳 |
+| **`README-离线包说明.md`** | 给前台/运维看的说明 |
+
+**目标 Windows 电脑仍须安装 [Node.js 20+](https://nodejs.org)**（zip 里**不含** Node）。仅有 exe 无法单独跑通 API 与网页；**双击 `start.bat`** 即可（首次会复制 `api/.env.example` → `api/.env`，需按需改密钥与数据路径）。
+
+说明：zip 体积会较大（后端依赖含 **Puppeteer** 等），属正常现象；脚本会剔除 `api` 内的本地 **`.db` / `uploads`**，避免把开发库误打进包。
+
 ## GitHub Releases
 
 推送符合 `v*` 的标签（例如 `v0.0.1`）会触发 **GitHub Actions**，在 `windows-latest` 上打包 NSIS 安装包，并自动创建/更新 **Release**，附带 **`.exe`** 与 **`.blockmap`**。

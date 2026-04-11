@@ -12,7 +12,8 @@
     "db:generate": "pnpm --filter @finance/api exec prisma generate",
     "desktop": "pnpm --filter @finance/desktop start",
     "pack:desktop:win": "pnpm --filter @finance/desktop run pack:win",
-    "pack:desktop:win:portable": "pnpm --filter @finance/desktop run pack:win:portable"
+    "pack:desktop:win:portable": "pnpm --filter @finance/desktop run pack:win:portable",
+    "pack:bundle:win": "node scripts/pack-windows-bundle.cjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

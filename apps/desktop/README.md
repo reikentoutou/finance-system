@@ -10,6 +10,12 @@
 pnpm run pack:desktop:win
 ```
 
+「一个 zip 单机目录」（API + 前端 + 便携 exe + `start.bat`）：
+
+```bash
+pnpm run pack:bundle:win
+```
+
 产物在 `release/`（已 gitignore）。
 
 ## CI 发布
