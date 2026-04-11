@@ -16,6 +16,14 @@
 
 - 按需补充：图标、自动更新、签名等。
 
+## [0.0.4] - 2026-04-11
+
+### 改进
+
+- 桌面端：内置 API / 静态站输出写入 `%AppData%\FinanceSystem\api-startup.log`、`web-startup.log`，便于排查启动失败。
+- 桌面端：按 `.env` 的 `PORT` 等待 API；进程在就绪前退出时立即报错，不再长时间空等。
+- 桌面端：检测到单实例已运行时弹出提示，避免误以为「点击无反应」。
+
 ## [0.0.3] - 2026-04-11
 
 ### 修复
@@ -36,7 +44,8 @@
 - 日报、集计、导出（管理员）；东京时区与四班次业务规则。
 - GitHub Actions：标签 `v*` 触发 Windows NSIS 构建并上传 Release 资产。
 
-[Unreleased]: https://github.com/reikentoutou/finance-system/compare/v0.0.3...HEAD
+[Unreleased]: https://github.com/reikentoutou/finance-system/compare/v0.0.4...HEAD
+[0.0.4]: https://github.com/reikentoutou/finance-system/releases/tag/v0.0.4
 [0.0.3]: https://github.com/reikentoutou/finance-system/releases/tag/v0.0.3
 [0.0.2]: https://github.com/reikentoutou/finance-system/releases/tag/v0.0.2
 [0.0.1]: https://github.com/reikentoutou/finance-system/releases/tag/v0.0.1
