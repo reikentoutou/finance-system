@@ -16,6 +16,12 @@
 
 - 按需补充：图标、自动更新、签名等。
 
+## [0.0.3] - 2026-04-11
+
+### 修复
+
+- GitHub Actions：移除 `pnpm/action-setup` 的 `version`，与根目录 `packageManager` 一致，避免 **Multiple versions of pnpm specified** 导致 Release 构建失败。
+
 ## [0.0.2] - 2026-04-11
 
 ### 修复
@@ -30,6 +36,7 @@
 - 日报、集计、导出（管理员）；东京时区与四班次业务规则。
 - GitHub Actions：标签 `v*` 触发 Windows NSIS 构建并上传 Release 资产。
 
-[Unreleased]: https://github.com/reikentoutou/finance-system/compare/v0.0.2...HEAD
+[Unreleased]: https://github.com/reikentoutou/finance-system/compare/v0.0.3...HEAD
+[0.0.3]: https://github.com/reikentoutou/finance-system/releases/tag/v0.0.3
 [0.0.2]: https://github.com/reikentoutou/finance-system/releases/tag/v0.0.2
 [0.0.1]: https://github.com/reikentoutou/finance-system/releases/tag/v0.0.1
