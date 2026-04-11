@@ -120,11 +120,8 @@ void (async () => {
   const apiDest = path.join(outDir, 'api');
   fs.mkdirSync(apiDest, { recursive: true });
   console.log('==> pnpm deploy api -> resources-bundled/api');
-  const dr = spawnSync('pnpm', ['--filter', '@finance/api', 'deploy', apiDest], {
-    stdio: 'inherit',
-    cwd: repoRoot,
-  });
-  if (dr.status !== 0) process.exit(dr.status || 1);
+  // Windows 上需与 run() 一致使用 shell，否则可能找不到 pnpm 或子进程环境异常
+  run('pnpm', ['--filter', '@finance/api', 'deploy', apiDest]);
   removeSqliteAndUploads(apiDest);
 
   const ex = path.join(repoRoot, 'apps', 'api', '.env.example');

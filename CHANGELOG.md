@@ -16,6 +16,12 @@
 
 - 按需补充：图标、自动更新、签名等。
 
+## [0.0.2] - 2026-04-11
+
+### 修复
+
+- Windows 上 `prepare-electron-bundled-resources` 的 `pnpm deploy` 改为与 `run()` 一致经 shell 调用，避免本机打包时 `pnpm deploy` 失败。
+
 ## [0.0.1] - 2026-04-11
 
 ### 新增
@@ -24,5 +30,6 @@
 - 日报、集计、导出（管理员）；东京时区与四班次业务规则。
 - GitHub Actions：标签 `v*` 触发 Windows NSIS 构建并上传 Release 资产。
 
-[Unreleased]: https://github.com/reikentoutou/finance-system/compare/v0.0.1...HEAD
+[Unreleased]: https://github.com/reikentoutou/finance-system/compare/v0.0.2...HEAD
+[0.0.2]: https://github.com/reikentoutou/finance-system/releases/tag/v0.0.2
 [0.0.1]: https://github.com/reikentoutou/finance-system/releases/tag/v0.0.1
