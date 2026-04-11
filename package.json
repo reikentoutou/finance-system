@@ -11,8 +11,9 @@
     "db:push": "pnpm --filter @finance/api exec prisma db push",
     "db:generate": "pnpm --filter @finance/api exec prisma generate",
     "desktop": "pnpm --filter @finance/desktop start",
-    "pack:desktop:win": "pnpm --filter @finance/desktop run pack:win",
-    "pack:desktop:win:portable": "pnpm --filter @finance/desktop run pack:win:portable",
+    "pack:desktop:win": "node scripts/prepare-electron-bundled-resources.cjs && pnpm --filter @finance/desktop run pack:win && node scripts/restore-resources-bundled-placeholder.cjs",
+    "pack:desktop:win:portable": "node scripts/prepare-electron-bundled-resources.cjs && pnpm --filter @finance/desktop run pack:win:portable && node scripts/restore-resources-bundled-placeholder.cjs",
+    "pack:desktop:win:shell": "pnpm --filter @finance/desktop run pack:win",
     "pack:bundle:win": "node scripts/pack-windows-bundle.cjs"
   },
   "devDependencies": {

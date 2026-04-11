@@ -1,23 +1,24 @@
 # @finance/desktop（Electron，Windows x64）
 
-仅面向 **Windows** 的壳应用：加载开发中的 Web（默认 `http://127.0.0.1:5173`）或通过环境变量 **`FINANCE_WEB_URL`** 指定已部署站点。
+- **开发**：未打包时仅作浏览器壳，默认打开 `http://127.0.0.1:5173`（需自行起 API + Vite），或用 **`FINANCE_WEB_URL`** / **`FINANCE_USER_DATA_DIR`**。
+- **生产安装包**：已 **内嵌 Node + API + Vue 静态资源**；客户 **双击 exe** 即可（无需系统级 Node）。退出应用会结束本机 API 与静态页进程。
 
-## 本地打包
+## 打包（须在 Windows 上打可交付安装包）
 
-在仓库根目录：
+在**仓库根目录**执行（会先 `prepare`、再打 electron、再恢复 `resources-bundled` 占位）：
 
 ```bash
-pnpm run pack:desktop:win
+pnpm run pack:desktop:win             # NSIS
+pnpm run pack:desktop:win:portable    # 便携 exe
+pnpm run pack:bundle:win              # zip：便携 exe + 说明（同上，仅 Windows）
 ```
 
-「一个 zip 单机目录」（API + 前端 + 便携 exe + `start.bat`）：
+仅打壳（**不含**完整 `resources-bundled`，不可交付客户）：
 
 ```bash
-pnpm run pack:bundle:win
+pnpm run pack:desktop:win:shell
 ```
 
 产物在 `release/`（已 gitignore）。
 
-## CI 发布
-
-推送标签 **`v*`**（如 `v0.0.1`）由 GitHub Actions 构建 NSIS 并上传到 **Releases**。流程与版本号对齐见根目录 **[RELEASING.md](../../RELEASING.md)**。
+详见根目录 **[README.md](../../README.md)**、**[RELEASING.md](../../RELEASING.md)**。

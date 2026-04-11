@@ -6,9 +6,11 @@
 
 ### 新增
 
-- 根目录 `pnpm run pack:bundle:win`：生成含 API + `web/dist` + 便携 exe + `start.bat` 的 **Windows 离线 zip**（目标机仍需安装 Node.js）。
-- Prisma `binaryTargets` 增加 `windows`，便于在非 Windows 上打 Windows 离线包。
-- Electron **portable** 产物文件名与 NSIS 区分（`*-Windows-Portable-*.exe`）。
+- **Windows 桌面包自包含**：内置 Node、Nest API、Vue 静态页；客户 **双击 exe** 即可（无需系统 Node）。配置与数据默认 `%AppData%\FinanceSystem`。
+- `prepare-electron-bundled-resources`：在 **Windows** 上生成 `resources-bundled` 并打入 NSIS / 便携 exe（`pnpm run pack:desktop:win` 等）。
+- `pnpm run pack:bundle:win`（仅 Windows）：zip 内含自包含便携 exe + 说明。
+- Prisma `binaryTargets` 含 `windows`；可交付桌面包仍须在 **Windows** 上 prepare（bcrypt 等）。
+- Electron **portable** 与 NSIS 文件名区分（`*-Windows-Portable-*.exe`）。
 
 ### 计划中
 

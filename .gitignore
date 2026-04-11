@@ -7,3 +7,8 @@ uploads/
 .DS_Store
 apps/api/uploads/
 apps/desktop/release/
+# 正式 contents 由 prepare 生成；勿忽略整个目录（需保留 README 占位供 electron-builder）
+apps/desktop/resources-bundled/node-win/
+apps/desktop/resources-bundled/api/
+apps/desktop/resources-bundled/web/
+apps/desktop/resources-bundled/serve-web.mjs

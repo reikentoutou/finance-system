@@ -33,8 +33,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Pack Windows NSIS (x64)
-        run: pnpm --filter @finance/desktop run pack:win
+      - name: Pack self-contained Windows NSIS (x64)
+        run: pnpm run pack:desktop:win
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
@@ -42,9 +42,11 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: Desktop ${{ github.ref_name }} (Windows x64)
           body: |
-            **安装程序**：请在本 Release 的 **Assets** 中下载 **`FinanceSystem-*-Windows-Setup-x64.exe`**（不要下载 GitHub 自动附带的 **Source code** zip/tar，那是源码快照）。
+            **安装程序**：请下载 **`FinanceSystem-*-Windows-Setup-x64.exe`**（不要下载 **Source code** zip/tar）。
 
-            Windows x64 NSIS（Electron 壳）。变更说明见 [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)。
+            安装包为 **自包含**：已内置 Node、API 与前端；**客户双击桌面快捷方式 / exe 即可使用**，无需单独安装 Node。首次运行会在 `%AppData%\\FinanceSystem` 生成配置与数据库目录；交付前可在该目录编辑 `.env`（如 `JWT_SECRET`）。
+
+            变更说明见 [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)。
           files: |
             apps/desktop/release/*Setup*.exe
             apps/desktop/release/*.blockmap

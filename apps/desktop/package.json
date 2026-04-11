@@ -18,6 +18,13 @@
     "appId": "com.finance.system.desktop",
     "productName": "FinanceSystem",
     "files": ["main.js", "package.json"],
+    "extraResources": [
+      {
+        "from": "resources-bundled",
+        "to": "bundled",
+        "filter": ["**/*"]
+      }
+    ],
     "directories": {
       "output": "release"
     },
