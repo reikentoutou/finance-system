@@ -1,0 +1,33 @@
+{
+  "name": "@finance/desktop",
+  "version": "0.0.1",
+  "private": true,
+  "main": "main.js",
+  "author": "Finance System",
+  "description": "Finance system desktop shell (Windows x64)",
+  "scripts": {
+    "start": "electron .",
+    "pack:win": "electron-builder --win --x64",
+    "pack:win:portable": "electron-builder --win portable --x64"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.finance.system.desktop",
+    "productName": "FinanceSystem",
+    "files": ["main.js", "package.json"],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "artifactName": "${productName}-${version}-Windows-Setup-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

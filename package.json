@@ -1,0 +1,21 @@
+{
+  "name": "finance-system",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c blue,magenta \"pnpm --filter @finance/api dev\" \"pnpm --filter @finance/web dev\"",
+    "dev:api": "pnpm --filter @finance/api dev",
+    "dev:web": "pnpm --filter @finance/web dev",
+    "build": "pnpm run build:api && pnpm run build:web",
+    "build:api": "pnpm --filter @finance/api build",
+    "build:web": "pnpm --filter @finance/web build",
+    "db:push": "pnpm --filter @finance/api exec prisma db push",
+    "db:generate": "pnpm --filter @finance/api exec prisma generate",
+    "desktop": "pnpm --filter @finance/desktop start",
+    "pack:desktop:win": "pnpm --filter @finance/desktop run pack:win",
+    "pack:desktop:win:portable": "pnpm --filter @finance/desktop run pack:win:portable"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "packageManager": "pnpm@9.15.0+sha512.76e2379760a4328c4415728e080094b76b79e8793304cfaaf7bc1a2061a283d2d5285d46e169f943716a0758b1e2b8909a0b544fce460a065628a9fd5547c5e5"
+}

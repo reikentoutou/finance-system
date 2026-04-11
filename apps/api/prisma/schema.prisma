@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  WEBMASTER
+  ADMIN
+}
+
+model User {
+  id           String        @id @default(cuid())
+  username     String        @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime      @default(now())
+  dailyReports DailyReport[] @relation("CreatedReports")
+}
+
+model Shift {
+  id           String        @id @default(cuid())
+  name         String
+  sortOrder    Int
+  active       Boolean       @default(true)
+  dailyReports DailyReport[]
+}
+
+model ResponsiblePerson {
+  id     String @id @default(cuid())
+  name   String
+  active Boolean @default(true)
+}
+
+model TaxFreeCardTier {
+  id              String @id @default(cuid())
+  denominationYen Int
+  sortOrder       Int
+}
+
+/// Single-row settings (底钱 global)
+model AppSettings {
+  id                  String  @id @default("default")
+  registerFloatAmount Int     @default(0)
+  setupCompleted      Boolean @default(false)
+}
+
+model DailyReport {
+  id                         String @id @default(cuid())
+  reportDate                 String
+  shiftId                    String
+  shift                      Shift  @relation(fields: [shiftId], references: [id])
+  shiftNameSnapshot          String
+
+  responsiblePersonId        String
+  responsiblePersonSnapshot  String
+
+  startMinuteOfDay           Int
+  endMinuteOfDay             Int
+  timeRangeLabelSnapshot     String
+
+  chargeNightPackYen         Int
+  productSalesYen            Int
+
+  taxFreeTier1Count          Int
+  taxFreeTier2Count          Int
+  taxFreeTier3Count          Int
+
+  newageYen                  Int
+  airpayQrYen                Int
+  cashTotalYen               Int
+
+  ddnPhotoKey                String?
+  taxFreeCardPhotoKey        String?
+
+  totalSalesYen              Int
+  taxFreeCardAmountYen       Int
+  deviationYen               Int
+  deviationReason            String?
+
+  status                     String @default("approved")
+
+  createdByUserId            String
+  createdBy                  User   @relation("CreatedReports", fields: [createdByUserId], references: [id])
+  updatedAt                  DateTime @updatedAt
+
+  @@unique([reportDate, shiftId])
+  @@index([reportDate])
+}

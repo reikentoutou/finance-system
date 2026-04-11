@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.db
+*.db-journal
+.env
+uploads/
+.DS_Store
+apps/api/uploads/
+apps/desktop/release/
