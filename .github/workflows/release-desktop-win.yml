@@ -1,0 +1,51 @@
+name: Release Windows desktop
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-win:
+    # 仅标签 v*；手动运行时请在 “Run workflow” 选择带 v 前缀的标签，勿选 main
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Pack Windows NSIS (x64)
+        run: pnpm --filter @finance/desktop run pack:win
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Desktop ${{ github.ref_name }} (Windows x64)
+          body: |
+            Windows x64 NSIS 安装包（Electron 壳）。详见仓库 [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)。
+          files: |
+            apps/desktop/release/*Setup*.exe
+            apps/desktop/release/*.blockmap
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
