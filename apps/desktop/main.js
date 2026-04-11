@@ -25,6 +25,8 @@ const WEB_URL = process.env.FINANCE_WEB_URL || 'http://127.0.0.1:5173';
 let mainWindow = null;
 let apiChild = null;
 let webChild = null;
+/** 打包后静态页地址（与 serve-web 端口一致） */
+let bundledWebUrl = 'http://127.0.0.1:5173';
 
 function bundledRoot() {
   return path.join(process.resourcesPath, 'bundled');
@@ -119,6 +121,33 @@ async function waitUrl(url, totalMs = 120000) {
   throw new Error(`等待服务超时: ${url}`);
 }
 
+/** 子进程在就绪前崩溃时立即失败，避免空等 120s；超时则提示查看日志 */
+function raceUrlOrChildExit(child, url, logPath, totalMs = 120000) {
+  return new Promise((resolve, reject) => {
+    const onExit = (code, sig) => {
+      reject(
+        new Error(
+          `内置服务进程已退出（code=${code}${sig ? `, signal=${sig}` : ''}），未能就绪。\n请用记事本打开日志查看原因：\n${logPath}`,
+        ),
+      );
+    };
+    child.once('exit', onExit);
+    waitUrl(url, totalMs)
+      .then(() => {
+        child.removeListener('exit', onExit);
+        resolve();
+      })
+      .catch((err) => {
+        child.removeListener('exit', onExit);
+        reject(
+          new Error(
+            `${err.message}\n常见原因：对应端口被其它程序占用，或数据库/权限异常。详见：\n${logPath}`,
+          ),
+        );
+      });
+  });
+}
+
 function killChildren() {
   for (const ch of [apiChild, webChild]) {
     if (!ch || ch.killed) continue;
@@ -154,29 +183,59 @@ async function startBundledServers() {
     NODE_ENV: 'production',
   };
 
+  const apiPort = parseInt(String(envVars.PORT || '3000'), 10);
+  const webPort = 5173;
+  bundledWebUrl = `http://127.0.0.1:${webPort}`;
+
+  const userData = app.getPath('userData');
+  const apiLogPath = path.join(userData, 'api-startup.log');
+  const webLogPath = path.join(userData, 'web-startup.log');
+  fs.appendFileSync(
+    apiLogPath,
+    `\n---------- API ${new Date().toISOString()} ----------\n`,
+  );
+  fs.appendFileSync(
+    webLogPath,
+    `\n---------- Web ${new Date().toISOString()} ----------\n`,
+  );
+
+  const apiLogStream = fs.createWriteStream(apiLogPath, { flags: 'a' });
   apiChild = spawn(nodeExe, ['dist/main.js'], {
     cwd: apiRoot,
     env: envVars,
-    stdio: 'ignore',
+    stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
   });
+  apiChild.stdout.pipe(apiLogStream);
+  apiChild.stderr.pipe(apiLogStream);
   apiChild.on('error', (e) => console.error('API spawn', e));
 
-  await waitUrl('http://127.0.0.1:3000/');
+  await raceUrlOrChildExit(
+    apiChild,
+    `http://127.0.0.1:${apiPort}/`,
+    apiLogPath,
+  );
 
+  const webLogStream = fs.createWriteStream(webLogPath, { flags: 'a' });
   webChild = spawn(nodeExe, [serveScript], {
     cwd: bundled,
     env: {
       ...envVars,
-      WEB_STATIC_PORT: '5173',
+      WEB_STATIC_PORT: String(webPort),
       WEB_STATIC_HOST: '127.0.0.1',
     },
-    stdio: 'ignore',
+    stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
   });
+  webChild.stdout.pipe(webLogStream);
+  webChild.stderr.pipe(webLogStream);
   webChild.on('error', (e) => console.error('Web spawn', e));
 
-  await waitUrl('http://127.0.0.1:5173/');
+  await raceUrlOrChildExit(
+    webChild,
+    `http://127.0.0.1:${webPort}/`,
+    webLogPath,
+  );
 }
 
 function createWindow() {
@@ -188,7 +247,7 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
-  const url = app.isPackaged ? 'http://127.0.0.1:5173' : WEB_URL;
+  const url = app.isPackaged ? bundledWebUrl : WEB_URL;
   mainWindow.loadURL(url);
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -197,6 +256,11 @@ function createWindow() {
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
+  // 否则用户会以为「点了没反应」：通常已有实例在后台或上次未正常退出
+  dialog.showErrorBox(
+    'FinanceSystem 已在运行',
+    '若未看到主窗口，请打开任务管理器，结束「FinanceSystem」或残留 node.exe 后重试。',
+  );
   app.quit();
   process.exit(0);
 }
