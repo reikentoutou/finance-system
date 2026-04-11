@@ -6,6 +6,21 @@ Release 由工作流 **[`.github/workflows/release-desktop-win.yml`](.github/wor
 
 也可在 Actions 里 **手动运行**（`workflow_dispatch`）：在 **Run workflow** 中把分支/ref 选为 **已存在的标签**（如 `v0.0.1`），勿选 `main`，否则任务会因 ref 不是 `refs/tags/v*` 而被跳过。
 
+### 下载哪个文件？（Release 里为什么有「Source code」）
+
+GitHub **每个 Release 都会自动附带**：
+
+- **Source code (zip)** / **Source code (tar.gz)**：当前标签下仓库的**源码快照**，不是安装程序。
+
+**Windows 安装包**是 CI 额外上传的资产，名称类似：
+
+- **`FinanceSystem-<版本>-Windows-Setup-x64.exe`**（NSIS 安装包）
+- 可选：同版本的 **`.blockmap`**
+
+请在 Release 页面的 **Assets** 列表里找上述 **`.exe`**；**不要**把「Source code」当成安装包。
+
+若 **Assets 里只有 Source code、没有 `.exe`**，说明 **「Release Windows desktop」工作流失败或未运行**：打开 **Actions** 查看该标签对应运行记录的报错（常见原因：依赖安装失败、打包脚本失败等）。
+
 ### 发布前检查清单
 
 1. 将 **`apps/desktop/package.json`** 里的 **`version`** 改为与标签一致（去掉前缀 `v`，例如标签 `v1.2.3` → `version` 为 `1.2.3`）。安装包文件名会包含该版本号。

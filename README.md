@@ -52,9 +52,9 @@ pnpm run pack:desktop:win:portable   # 便携 exe（可选）
 
 ## GitHub Releases
 
-推送符合 `v*` 的标签（例如 `v0.0.1`）会触发 **GitHub Actions**，在 `windows-latest` 上打包 NSIS 安装包，并自动创建/更新 **Release**，附带 `.exe` 与 `.blockmap`。
+推送符合 `v*` 的标签（例如 `v0.0.1`）会触发 **GitHub Actions**，在 `windows-latest` 上打包 NSIS 安装包，并自动创建/更新 **Release**，附带 **`.exe`** 与 **`.blockmap`**。
 
-发布前版本号与流程见 **[RELEASING.md](./RELEASING.md)**。变更记录见 **[CHANGELOG.md](./CHANGELOG.md)**。
+说明：GitHub 还会在 Release 里自动附上 **Source code (zip/tar.gz)**，那是**源码快照**，不是安装程序；请下载 **`FinanceSystem-*-Windows-Setup-x64.exe`**。详见 **[RELEASING.md](./RELEASING.md)**。变更记录见 **[CHANGELOG.md](./CHANGELOG.md)**。
 
 ## 许可证
 
