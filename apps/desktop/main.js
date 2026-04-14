@@ -25,8 +25,11 @@ const WEB_URL = process.env.FINANCE_WEB_URL || 'http://127.0.0.1:5173';
 let mainWindow = null;
 let apiChild = null;
 let webChild = null;
-/** 打包后静态页地址（与 serve-web 端口一致） */
-let bundledWebUrl = 'http://127.0.0.1:5173';
+/** 打包态下 loadURL 使用（与 WEB_STATIC_PORT / serve-web 一致） */
+let packagedWebUrl = 'http://127.0.0.1:5173';
+/** 为 true 时表示正在主动结束子进程，不弹「意外退出」 */
+let intentionalShutdown = false;
+let crashDialogShown = false;
 
 function bundledRoot() {
   return path.join(process.resourcesPath, 'bundled');
@@ -50,6 +53,44 @@ function parseDotenv(content) {
     out[k] = v;
   }
   return out;
+}
+
+function clampPort(val, fallback) {
+  const n = parseInt(String(val == null ? '' : val), 10);
+  if (!Number.isFinite(n) || n < 1 || n > 65535) return fallback;
+  return n;
+}
+
+/** 仅向子进程传递必要环境变量，避免把 Electron 父进程整表 env 泄露给 Nest */
+const PROCESS_ENV_ALLOWLIST = [
+  'PATH',
+  'PATHEXT',
+  'WINDIR',
+  'SYSTEMROOT',
+  'TEMP',
+  'TMP',
+  'USERPROFILE',
+  'USERNAME',
+  'HOMEDRIVE',
+  'HOMEPATH',
+  'APPDATA',
+  'LOCALAPPDATA',
+  'COMPUTERNAME',
+  'LANG',
+  'LC_ALL',
+];
+
+/** 将用户 .env 中形如 VAR_NAME 的项传入子进程（扩展配置不必改 main.js） */
+function buildChildEnv(userEnv) {
+  const env = { NODE_ENV: 'production' };
+  for (const k of PROCESS_ENV_ALLOWLIST) {
+    if (process.env[k] != null && process.env[k] !== '') env[k] = process.env[k];
+  }
+  for (const [k, v] of Object.entries(userEnv)) {
+    if (v == null || v === '') continue;
+    if (/^[A-Z][A-Z0-9_]*$/.test(k)) env[k] = String(v);
+  }
+  return env;
 }
 
 function ensureUserEnv() {
@@ -87,6 +128,9 @@ function ensureUserEnv() {
     } else {
       body = `${body}\nUPLOAD_DIR="${upAbs}"\n`;
     }
+    if (!/^WEB_STATIC_PORT=/m.test(body)) {
+      body = `${body}\nWEB_STATIC_PORT=5173\n`;
+    }
     fs.writeFileSync(envPath, body, 'utf8');
   }
   return envPath;
@@ -94,7 +138,42 @@ function ensureUserEnv() {
 
 function loadUserEnvObject() {
   const envPath = ensureUserEnv();
-  return parseDotenv(fs.readFileSync(envPath, 'utf8'));
+  const u = parseDotenv(fs.readFileSync(envPath, 'utf8'));
+  if (u.WEB_STATIC_PORT == null || u.WEB_STATIC_PORT === '') {
+    u.WEB_STATIC_PORT = '5173';
+  }
+  return u;
+}
+
+function showCrashOnce(title, message) {
+  if (crashDialogShown) return;
+  crashDialogShown = true;
+  try {
+    dialog.showErrorBox(title, message);
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+function attachChildExitHandler(child, label) {
+  if (!child) return;
+  child.on('exit', (code, signal) => {
+    if (intentionalShutdown) return;
+    const codeStr = code == null ? 'null' : String(code);
+    const sigStr = signal == null ? '无' : String(signal);
+    showCrashOnce(
+      `${label}已退出`,
+      `${label}进程意外结束（退出码 ${codeStr}，信号 ${sigStr}）。应用将关闭。\n请查看 %AppData%\\FinanceSystem 下配置与磁盘空间，或联系管理员。`,
+    );
+    intentionalShutdown = true;
+    killChildren();
+    try {
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy();
+    } catch (_) {
+      /* ignore */
+    }
+    app.quit();
+  });
 }
 
 async function fetchOk(url, timeoutMs) {
@@ -108,7 +187,8 @@ async function fetchOk(url, timeoutMs) {
   }
 }
 
-async function waitUrl(url, totalMs = 120000) {
+/** 首次拉起服务：总超时 90s，失败更快反馈 */
+async function waitUrl(url, totalMs = 90000) {
   const start = Date.now();
   while (Date.now() - start < totalMs) {
     try {
@@ -121,8 +201,8 @@ async function waitUrl(url, totalMs = 120000) {
   throw new Error(`等待服务超时: ${url}`);
 }
 
-/** 子进程在就绪前崩溃时立即失败，避免空等 120s；超时则提示查看日志 */
-function raceUrlOrChildExit(child, url, logPath, totalMs = 120000) {
+/** 子进程在就绪前崩溃时立即失败；超时则提示查看日志 */
+function raceUrlOrChildExit(child, url, logPath, totalMs = 90000) {
   return new Promise((resolve, reject) => {
     const onExit = (code, sig) => {
       reject(
@@ -149,6 +229,7 @@ function raceUrlOrChildExit(child, url, logPath, totalMs = 120000) {
 }
 
 function killChildren() {
+  intentionalShutdown = true;
   for (const ch of [apiChild, webChild]) {
     if (!ch || ch.killed) continue;
     try {
@@ -177,15 +258,20 @@ async function startBundledServers() {
     throw new Error('未找到前端静态资源。');
   }
 
-  const envVars = {
-    ...process.env,
-    ...loadUserEnvObject(),
-    NODE_ENV: 'production',
-  };
+  const userEnv = loadUserEnvObject();
+  const apiPort = clampPort(userEnv.PORT, 3000);
+  const webPort = clampPort(userEnv.WEB_STATIC_PORT, 5173);
+  if (apiPort === webPort) {
+    throw new Error(`API 端口与静态页端口不能相同（均为 ${apiPort}）。请修改 .env 中 PORT 或 WEB_STATIC_PORT。`);
+  }
 
-  const apiPort = parseInt(String(envVars.PORT || '3000'), 10);
-  const webPort = 5173;
-  bundledWebUrl = `http://127.0.0.1:${webPort}`;
+  const envVars = buildChildEnv({ ...userEnv, PORT: String(apiPort), WEB_STATIC_PORT: String(webPort) });
+  const apiUrl = `http://127.0.0.1:${apiPort}/`;
+  const webUrl = `http://127.0.0.1:${webPort}/`;
+  packagedWebUrl = `http://127.0.0.1:${webPort}`;
+
+  intentionalShutdown = false;
+  crashDialogShown = false;
 
   const userData = app.getPath('userData');
   const apiLogPath = path.join(userData, 'api-startup.log');
@@ -210,11 +296,8 @@ async function startBundledServers() {
   apiChild.stderr.pipe(apiLogStream);
   apiChild.on('error', (e) => console.error('API spawn', e));
 
-  await raceUrlOrChildExit(
-    apiChild,
-    `http://127.0.0.1:${apiPort}/`,
-    apiLogPath,
-  );
+  await raceUrlOrChildExit(apiChild, apiUrl, apiLogPath);
+  attachChildExitHandler(apiChild, '后端 API');
 
   const webLogStream = fs.createWriteStream(webLogPath, { flags: 'a' });
   webChild = spawn(nodeExe, [serveScript], {
@@ -231,11 +314,8 @@ async function startBundledServers() {
   webChild.stderr.pipe(webLogStream);
   webChild.on('error', (e) => console.error('Web spawn', e));
 
-  await raceUrlOrChildExit(
-    webChild,
-    `http://127.0.0.1:${webPort}/`,
-    webLogPath,
-  );
+  await raceUrlOrChildExit(webChild, webUrl, webLogPath);
+  attachChildExitHandler(webChild, '前端静态服务');
 }
 
 function createWindow() {
@@ -247,7 +327,7 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
-  const url = app.isPackaged ? bundledWebUrl : WEB_URL;
+  const url = app.isPackaged ? packagedWebUrl : WEB_URL;
   mainWindow.loadURL(url);
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -256,7 +336,6 @@ function createWindow() {
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
-  // 否则用户会以为「点了没反应」：通常已有实例在后台或上次未正常退出
   dialog.showErrorBox(
     'FinanceSystem 已在运行',
     '若未看到主窗口，请打开任务管理器，结束「FinanceSystem」或残留 node.exe 后重试。',

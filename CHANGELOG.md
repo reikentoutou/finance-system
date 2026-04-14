@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### 变更
+
+- **Electron 主进程**：子进程异常退出时提示并退出；子进程环境变量改为「系统白名单 + 用户 `.env` 大写键」合并；`PORT` / `WEB_STATIC_PORT` 与健康检查、窗口 URL 对齐；端口冲突校验；首次创建 `.env` 时写入默认 `WEB_STATIC_PORT`。
+- **prepare 脚本**：Node 官方 zip 下载重定向最多 5 次；解压仅保留 Windows `tar` 路径（去掉不可达分支）。
+
 ### 新增
 
 - **Windows 桌面包自包含**：内置 Node、Nest API、Vue 静态页；客户 **双击 exe** 即可（无需系统 Node）。配置与数据默认 `%AppData%\FinanceSystem`。

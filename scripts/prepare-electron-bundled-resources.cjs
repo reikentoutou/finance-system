@@ -29,15 +29,28 @@ function run(cmd, args, opts = {}) {
   if (r.status !== 0) process.exit(r.status || 1);
 }
 
-function download(url, dest) {
+function download(url, dest, redirectDepth = 0) {
+  const maxRedirects = 5;
   return new Promise((resolve, reject) => {
+    if (redirectDepth > maxRedirects) {
+      reject(new Error(`重定向超过 ${maxRedirects} 次: ${url}`));
+      return;
+    }
     const file = fs.createWriteStream(dest);
     https
       .get(url, (res) => {
         if (res.statusCode === 301 || res.statusCode === 302) {
           file.close();
           fs.unlinkSync(dest);
-          return download(res.headers.location, dest).then(resolve).catch(reject);
+          const next = res.headers.location;
+          if (!next) {
+            reject(new Error('重定向无 Location'));
+            return;
+          }
+          const resolved = new URL(next, url).href;
+          return download(resolved, dest, redirectDepth + 1)
+            .then(resolve)
+            .catch(reject);
         }
         if (res.statusCode !== 200) {
           file.close();
@@ -73,11 +86,8 @@ function extractNodeWin(zipPath, destNodeWin) {
   const tmp = path.join(outDir, '_node_extract');
   fs.rmSync(tmp, { recursive: true, force: true });
   fs.mkdirSync(tmp, { recursive: true });
-  if (process.platform === 'win32') {
-    execSync(`tar -xf "${zipPath}" -C "${tmp}"`, { stdio: 'inherit' });
-  } else {
-    execSync(`unzip -q -o "${zipPath}" -d "${tmp}"`, { stdio: 'inherit' });
-  }
+  // 本脚本仅在 win32 上运行；统一用 Windows 自带 tar 解压 zip
+  execSync(`tar -xf "${zipPath}" -C "${tmp}"`, { stdio: 'inherit' });
   const inner = fs
     .readdirSync(tmp)
     .find((d) => d.startsWith('node-') && d.includes('win-x64'));
