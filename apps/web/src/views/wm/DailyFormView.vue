@@ -3,20 +3,43 @@ import { reactive, ref, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { http } from '@/api/http';
 import { ElMessage } from 'element-plus';
+import { confirmCashBeforeSubmit } from '@/utils/coupon-labels';
 import { minuteToHm, parseHmToMinute, wrapEndAfterStart } from '@/utils/time-parse';
-import type { TaxTier } from '@/utils/daily-report-calc';
+import {
+  validateDailyReportGoToConfirm,
+  validateDailyReportSubmit,
+} from '@/utils/daily-report-form-validate';
+import {
+  type TaxTier,
+  tiersSortedActive,
+  formatCouponCountsLine,
+} from '@/utils/daily-report-calc';
 import { useDailyReportPreview } from '@/composables/useDailyReportPreview';
-import HmSplitSelect from '@/components/HmSplitSelect.vue';
+import ReportAttachmentPreview from '@/components/ReportAttachmentPreview.vue';
+import DailyReportFormFields from '@/components/daily-report/DailyReportFormFields.vue';
+import DailyReportConfirmSummary from '@/components/daily-report/DailyReportConfirmSummary.vue';
+import {
+  useReportAttachmentFiles,
+  REPORT_PHOTO_ACCEPT,
+} from '@/composables/useReportAttachmentFiles';
+import {
+  syncCouponFormKeys,
+  parseServerCouponBaseline,
+  applyTaxFreeCountsFromRawToForm,
+} from '@/utils/daily-report-form-sync';
+import { httpErrorMessage } from '@/utils/http-error-message';
 
 const route = useRoute();
 const router = useRouter();
 
 const loading = ref(true);
 const saving = ref(false);
-/** 入力 → 確認 */
+/** 填写 → 确认 */
 const step = ref<'form' | 'confirm'>('form');
 const taxTiers = ref<TaxTier[]>([]);
-/** 設定のレジ底銭（実点から控除） */
+/** 编辑时：表单不展示的失效券种等 key 的枚数（预览与保存合并用） */
+const serverCouponBaseline = ref<Record<string, number>>({});
+/** 设置中的收银底钱（从实点中扣除） */
 const registerFloatAmount = ref(0);
 const editId = ref<string | null>(null);
 const shiftId = ref('');
@@ -24,9 +47,16 @@ const reportDate = ref('');
 const shifts = ref<{ id: string; name: string }[]>([]);
 const persons = ref<{ id: string; name: string }[]>([]);
 
-const ddnFile = ref<File | null>(null);
-const taxFile = ref<File | null>(null);
-/** 新建时是否已把開始時刻设为上一班次終了（用于提示，仍可手改） */
+const {
+  ddnFile,
+  taxFile,
+  savedDdnPhotoKey,
+  savedTaxFreePhotoKey,
+  onPickDdn,
+  onPickTax,
+  clearPickedFiles,
+} = useReportAttachmentFiles();
+/** 新建时：开始时刻是否已按上一班次结束对齐（仅展示；可手改） */
 const startTimeFromPreviousShift = ref(false);
 
 const form = reactive({
@@ -35,12 +65,11 @@ const form = reactive({
   endStr: '18:00',
   chargeNightPackYen: 0,
   productSalesYen: 0,
-  taxFreeTier1Count: 0,
-  taxFreeTier2Count: 0,
-  taxFreeTier3Count: 0,
+  /** 仅有效券种 id（提交 payload 用） */
+  taxFreeCouponCounts: {} as Record<string, number>,
   newageYen: 0,
   airpayQrYen: 0,
-  /** レジ内実点の現金（底銭を含む） */
+  /** 收银机内实点现金（含底钱） */
   cashInDrawerYen: 0,
   deviationReason: '',
 });
@@ -57,12 +86,35 @@ const personName = computed(
     persons.value.find((p) => p.id === form.responsiblePersonId)?.name ?? '—',
 );
 
-/** 精算・保存用：入力実点 − 底銭（0 未満は 0 に丸め） */
+/** 结算/保存用：输入实点 − 底钱（小于 0 时按 0） */
 const cashNetForReport = computed(() =>
   Math.max(0, form.cashInDrawerYen - registerFloatAmount.value),
 );
 
-const preview = useDailyReportPreview(form, taxTiers, cashNetForReport);
+const activeTiersSorted = computed(() => tiersSortedActive(taxTiers.value));
+
+const couponCountsForPreview = computed(() => {
+  const m = { ...serverCouponBaseline.value };
+  for (const t of activeTiersSorted.value) {
+    m[t.id] = form.taxFreeCouponCounts[t.id] ?? 0;
+  }
+  return m;
+});
+
+const preview = useDailyReportPreview(
+  form,
+  taxTiers,
+  cashNetForReport,
+  couponCountsForPreview,
+);
+
+const couponCountsConfirmLine = computed(() =>
+  formatCouponCountsLine(taxTiers.value, couponCountsForPreview.value),
+);
+
+function syncCouponKeys() {
+  syncCouponFormKeys(form.taxFreeCouponCounts, taxTiers.value);
+}
 
 async function loadMeta() {
   const [{ data: s }, { data: p }, { data: settings }, { data: tiers }] =
@@ -76,6 +128,7 @@ async function loadMeta() {
   persons.value = p;
   registerFloatAmount.value = settings?.registerFloatAmount ?? 0;
   taxTiers.value = tiers ?? [];
+  syncCouponKeys();
   if (!form.responsiblePersonId && p[0]) form.responsiblePersonId = p[0].id;
 }
 
@@ -92,16 +145,23 @@ async function loadExisting(id: string) {
   form.endStr = `${String(Math.floor(em / 60)).padStart(2, '0')}:${String(em % 60).padStart(2, '0')}`;
   form.chargeNightPackYen = data.chargeNightPackYen;
   form.productSalesYen = data.productSalesYen;
-  form.taxFreeTier1Count = data.taxFreeTier1Count;
-  form.taxFreeTier2Count = data.taxFreeTier2Count;
-  form.taxFreeTier3Count = data.taxFreeTier3Count;
+  const raw = (data.taxFreeCouponCounts ?? {}) as Record<string, unknown>;
+  serverCouponBaseline.value = parseServerCouponBaseline(raw);
+  syncCouponKeys();
+  applyTaxFreeCountsFromRawToForm(
+    form.taxFreeCouponCounts,
+    raw,
+    activeTiersSorted.value,
+  );
   form.newageYen = data.newageYen;
   form.airpayQrYen = data.airpayQrYen;
   form.cashInDrawerYen = data.cashTotalYen + registerFloatAmount.value;
   form.deviationReason = data.deviationReason || '';
+  savedDdnPhotoKey.value = data.ddnPhotoKey ?? null;
+  savedTaxFreePhotoKey.value = data.taxFreeCardPhotoKey ?? null;
 }
 
-/** 新建：同一业务日、按 sortOrder 的上一班次若已有日報，開始 = 其終了時刻（与填报人无关）；可手改 */
+/** 新建：同一业务日 sortOrder 上一档已有日报则开始时刻默认为其结束（与责任人无关），可手改 */
 async function applyStartFromPreviousShift() {
   startTimeFromPreviousShift.value = false;
   try {
@@ -126,14 +186,18 @@ function resetFormForNewShift() {
   form.endStr = '18:00';
   form.chargeNightPackYen = 0;
   form.productSalesYen = 0;
-  form.taxFreeTier1Count = 0;
-  form.taxFreeTier2Count = 0;
-  form.taxFreeTier3Count = 0;
+  serverCouponBaseline.value = {};
+  syncCouponKeys();
+  for (const t of activeTiersSorted.value) {
+    form.taxFreeCouponCounts[t.id] = 0;
+  }
   form.newageYen = 0;
   form.airpayQrYen = 0;
   form.cashInDrawerYen = 0;
   form.deviationReason = '';
   if (persons.value[0]) form.responsiblePersonId = persons.value[0].id;
+  savedDdnPhotoKey.value = null;
+  savedTaxFreePhotoKey.value = null;
 }
 
 async function tryLoadExistingForNew() {
@@ -153,8 +217,7 @@ async function tryLoadExistingForNew() {
 async function loadPage() {
   loading.value = true;
   step.value = 'form';
-  ddnFile.value = null;
-  taxFile.value = null;
+  clearPickedFiles();
   try {
     await loadMeta();
     if (route.name === 'wm-report-edit') {
@@ -165,9 +228,7 @@ async function loadPage() {
       await tryLoadExistingForNew();
     }
   } catch (e: unknown) {
-    console.error(e);
-    const err = e as { response?: { data?: { message?: string } } };
-    ElMessage.error(err.response?.data?.message || '読み込みに失敗しました');
+    ElMessage.error(httpErrorMessage(e, '読み込みに失敗しました'));
   } finally {
     loading.value = false;
   }
@@ -184,19 +245,15 @@ watch(
   { immediate: true },
 );
 
-async function goToConfirm() {
-  if (!form.responsiblePersonId) {
-    ElMessage.error('責任者を選択してください');
-    return;
-  }
-  if (form.cashInDrawerYen < registerFloatAmount.value) {
-    ElMessage.error('レジ実点（底銭込）はレジ底銭以上の金額を入力してください');
-    return;
-  }
-  const sm = parseHmToMinute(form.startStr);
-  const em = parseHmToMinute(form.endStr);
-  if (sm === em) {
-    ElMessage.error('開始と終了を同じ時刻にはできません');
+function goToConfirm() {
+  const err = validateDailyReportGoToConfirm({
+    form,
+    registerFloatAmount: registerFloatAmount.value,
+    ddnFile: ddnFile.value,
+    savedDdnPhotoKey: savedDdnPhotoKey.value,
+  });
+  if (err) {
+    ElMessage.error(err);
     return;
   }
   step.value = 'confirm';
@@ -217,9 +274,12 @@ function buildPayload() {
     endMinuteOfDay,
     chargeNightPackYen: form.chargeNightPackYen,
     productSalesYen: form.productSalesYen,
-    taxFreeTier1Count: form.taxFreeTier1Count,
-    taxFreeTier2Count: form.taxFreeTier2Count,
-    taxFreeTier3Count: form.taxFreeTier3Count,
+    taxFreeCouponCounts: Object.fromEntries(
+      activeTiersSorted.value.map((t) => [
+        t.id,
+        form.taxFreeCouponCounts[t.id] ?? 0,
+      ]),
+    ),
     newageYen: form.newageYen,
     airpayQrYen: form.airpayQrYen,
     cashTotalYen: cashNetForReport.value,
@@ -228,24 +288,25 @@ function buildPayload() {
 }
 
 async function submit() {
-  if (!form.responsiblePersonId) {
-    ElMessage.error('責任者を選択してください');
+  const errSubmit = validateDailyReportSubmit({
+    form,
+    registerFloatAmount: registerFloatAmount.value,
+    ddnFile: ddnFile.value,
+    savedDdnPhotoKey: savedDdnPhotoKey.value,
+    previewDeviationYen: preview.value.deviationYen,
+  });
+  if (errSubmit) {
+    ElMessage.error(errSubmit);
     return;
   }
-  if (form.cashInDrawerYen < registerFloatAmount.value) {
-    ElMessage.error('レジ実点（底銭込）はレジ底銭以上の金額を入力してください');
+  try {
+    await confirmCashBeforeSubmit({
+      registerFloatYen: registerFloatAmount.value,
+      cashInDrawerYen: form.cashInDrawerYen,
+      withdrawalYen: cashNetForReport.value,
+    });
+  } catch {
     return;
-  }
-  if (!editId.value && (!ddnFile.value || !taxFile.value)) {
-    ElMessage.error('DDN・免税カードの写真を両方選択してください');
-    return;
-  }
-  if (preview.value.deviationYen < 0) {
-    const r = form.deviationReason?.trim();
-    if (!r) {
-      ElMessage.error('負の偏差の場合は理由を入力してください');
-      return;
-    }
   }
   saving.value = true;
   try {
@@ -262,15 +323,20 @@ async function submit() {
       const fd = new FormData();
       if (ddnFile.value) fd.append('ddn', ddnFile.value);
       if (taxFile.value) fd.append('taxFree', taxFile.value);
-      await http.post(`/daily-reports/${id}/photos`, fd, {
+      const { data: afterPhotos } = await http.post<{
+        ddnPhotoKey?: string | null;
+        taxFreeCardPhotoKey?: string | null;
+      }>(`/daily-reports/${id}/photos`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
+      savedDdnPhotoKey.value = afterPhotos.ddnPhotoKey ?? savedDdnPhotoKey.value;
+      savedTaxFreePhotoKey.value =
+        afterPhotos.taxFreeCardPhotoKey ?? savedTaxFreePhotoKey.value;
     }
     ElMessage.success('提出しました');
     router.replace('/wm');
   } catch (e: unknown) {
-    const err = e as { response?: { data?: { message?: string } } };
-    ElMessage.error(err.response?.data?.message || 'エラー');
+    ElMessage.error(httpErrorMessage(e, 'エラー'));
   } finally {
     saving.value = false;
   }
@@ -284,121 +350,59 @@ async function submit() {
         link
         @click="step === 'confirm' ? backToForm() : router.back()"
       >
-        {{ step === 'confirm' ? '返回' : '戻る' }}
+        {{ step === 'confirm' ? '入力に戻る' : '戻る' }}
       </el-button>
       <h2>{{ pageTitle }} — {{ reportDate }}</h2>
     </header>
 
-    <!-- 確認：入力内容の表＋計算偏差 -->
+    <!-- 确认：展示填写内容与计算偏差 -->
     <template v-if="!loading && step === 'confirm'">
-      <el-descriptions title="入力内容の確認" border :column="1" class="summary">
-        <el-descriptions-item label="班次">{{ shiftName }}</el-descriptions-item>
-        <el-descriptions-item label="責任者">{{ personName }}</el-descriptions-item>
-        <el-descriptions-item label="時間帯">
-          {{ form.startStr }} — {{ form.endStr }}
-        </el-descriptions-item>
-        <el-descriptions-item label="チャージ・ナイト">
-          {{ form.chargeNightPackYen }} 円
-        </el-descriptions-item>
-        <el-descriptions-item label="商品売上">
-          {{ form.productSalesYen }} 円
-        </el-descriptions-item>
-        <el-descriptions-item label="総売上（計算）">
-          {{ preview.totalSalesYen }} 円
-        </el-descriptions-item>
-        <el-descriptions-item label="免税カード（1〜3档 枚数）">
-          {{ form.taxFreeTier1Count }} / {{ form.taxFreeTier2Count }} /
-          {{ form.taxFreeTier3Count }}
-        </el-descriptions-item>
-        <el-descriptions-item label="免税カード額（計算・偏差に加算）">
-          {{ preview.taxFreeCardAmountYen }} 円
-        </el-descriptions-item>
-        <el-descriptions-item label="Newage">{{ form.newageYen }} 円</el-descriptions-item>
-        <el-descriptions-item label="Airpay+QR">{{ form.airpayQrYen }} 円</el-descriptions-item>
-        <el-descriptions-item label="レジ実点（底銭込）">
-          {{ form.cashInDrawerYen }} 円
-        </el-descriptions-item>
-        <el-descriptions-item label="レジ底銭（設定）">
-          {{ registerFloatAmount }} 円
-        </el-descriptions-item>
-        <el-descriptions-item label="現金合計（実点 − 底銭）">
-          {{ preview.cashNetYen }} 円
-        </el-descriptions-item>
-        <el-descriptions-item label="偏差（計算）">
-          <span class="deviation">{{ preview.deviationYen }} 円</span>
-        </el-descriptions-item>
-        <el-descriptions-item v-if="form.deviationReason" label="偏差理由">
-          {{ form.deviationReason }}
-        </el-descriptions-item>
-      </el-descriptions>
+      <ReportAttachmentPreview
+        v-if="savedDdnPhotoKey || savedTaxFreePhotoKey"
+        :ddn-photo-key="savedDdnPhotoKey"
+        :tax-free-card-photo-key="savedTaxFreePhotoKey"
+      />
+      <DailyReportConfirmSummary
+        :preview="preview"
+        :shift-name="shiftName"
+        :person-name="personName"
+        :coupon-counts-confirm-line="couponCountsConfirmLine"
+        :register-float-amount="registerFloatAmount"
+        :start-str="form.startStr"
+        :end-str="form.endStr"
+        :charge-night-pack-yen="form.chargeNightPackYen"
+        :product-sales-yen="form.productSalesYen"
+        :newage-yen="form.newageYen"
+        :airpay-qr-yen="form.airpayQrYen"
+        :cash-in-drawer-yen="form.cashInDrawerYen"
+        :deviation-reason="form.deviationReason"
+      />
       <div class="confirm-actions">
-        <el-button @click="backToForm">返回</el-button>
-        <el-button type="primary" :loading="saving" @click="submit">提交</el-button>
+        <el-button @click="backToForm">入力に戻る</el-button>
+        <el-button type="primary" :loading="saving" @click="submit">提出する</el-button>
       </div>
     </template>
 
     <el-form v-if="!loading && step === 'form'" label-width="200px" class="form">
-      <el-form-item label="責任者">
-        <el-select v-model="form.responsiblePersonId" style="width: 280px">
-          <el-option
-            v-for="p in persons"
-            :key="p.id"
-            :label="p.name"
-            :value="p.id"
-          />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="時間帯（開始–終了）">
-        <span class="time-group">
-          <span class="time-label">開始</span>
-          <HmSplitSelect v-model="form.startStr" />
-        </span>
-        <span class="sep">—</span>
-        <span class="time-group">
-          <span class="time-label">終了</span>
-          <HmSplitSelect v-model="form.endStr" />
-        </span>
-        <p v-if="!editId" class="field-hint">
-          业务日 = 白1→白2→夜班→次日早班（本页「日付」为白1 开始日；末班在次日清晨仍属同一业务日）。
-          若上一班已有日报，开始时间默认取其结束时间（白1 会取前一业务日最后一班）；可随时修改。
-          跨日时：结束可早于开始（表示次日），例如 23:00–07:10。
-          <template v-if="startTimeFromPreviousShift">
-            （当前已开始时间已按上一班结束时间填入）
-          </template>
-        </p>
-      </el-form-item>
-      <el-form-item label="チャージ・ナイト / 商品売上">
-        <el-input-number v-model="form.chargeNightPackYen" :min="0" /> /
-        <el-input-number v-model="form.productSalesYen" :min="0" />
-      </el-form-item>
-      <el-form-item label="免税カード（1〜3档 枚数）">
-        <el-input-number v-model="form.taxFreeTier1Count" :min="0" />
-        <el-input-number v-model="form.taxFreeTier2Count" :min="0" />
-        <el-input-number v-model="form.taxFreeTier3Count" :min="0" />
-      </el-form-item>
-      <el-form-item label="Newage / Airpay+QR">
-        <el-input-number v-model="form.newageYen" :min="0" />
-        <el-input-number v-model="form.airpayQrYen" :min="0" />
-      </el-form-item>
-      <el-form-item label="レジ現金（実点・底銭込）">
-        <el-input-number v-model="form.cashInDrawerYen" :min="0" />
-        <p class="field-hint">
-          レジ内の現金を数えた金額（レジ底銭 {{ registerFloatAmount }} 円を含む）。精算の現金合計は
-          {{ cashNetForReport }} 円（実点 − 底銭）です。
-        </p>
-      </el-form-item>
-      <el-form-item label="偏差理由（負偏差時必須）">
-        <el-input v-model="form.deviationReason" type="textarea" :rows="2" />
-      </el-form-item>
-      <el-form-item label="DDN写真">
-        <input type="file" accept="image/*" @change="(e) => (ddnFile = (e.target as HTMLInputElement).files?.[0] || null)" />
-      </el-form-item>
-      <el-form-item label="免税カード写真">
-        <input type="file" accept="image/*" @change="(e) => (taxFile = (e.target as HTMLInputElement).files?.[0] || null)" />
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" @click="goToConfirm">確認</el-button>
-      </el-form-item>
+      <DailyReportFormFields
+        :form="form"
+        :persons="persons"
+        :active-tiers-sorted="activeTiersSorted"
+        :register-float-amount="registerFloatAmount"
+        :cash-net-for-report="cashNetForReport"
+        :saved-ddn-photo-key="savedDdnPhotoKey"
+        :saved-tax-free-photo-key="savedTaxFreePhotoKey"
+        :ddn-file="ddnFile"
+        :tax-file="taxFile"
+        :photo-accept="REPORT_PHOTO_ACCEPT"
+        coupon-empty-hint="有効な券種がありません。管理者のマスタ・設定で券種を追加してください。"
+        variant="wm"
+        :show-wm-time-hint="!editId"
+        :start-time-from-previous-shift="startTimeFromPreviousShift"
+        @pick-ddn="onPickDdn"
+        @pick-tax="onPickTax"
+        @confirm="goToConfirm"
+      />
     </el-form>
   </div>
 </template>
@@ -415,40 +419,13 @@ async function submit() {
   gap: 16px;
   margin-bottom: 16px;
 }
-.sep {
-  margin: 0 12px;
-}
-.time-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.time-label {
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
-  white-space: nowrap;
-}
 .form :deep(.el-input-number) {
   margin-right: 8px;
-}
-.summary {
-  margin-bottom: 24px;
-}
-.deviation {
-  font-size: 1.15rem;
-  font-weight: 600;
 }
 .confirm-actions {
   display: flex;
   gap: 12px;
   justify-content: flex-end;
   flex-wrap: wrap;
-}
-.field-hint {
-  margin: 8px 0 0;
-  width: 100%;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  line-height: 1.4;
 }
 </style>

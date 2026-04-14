@@ -4,8 +4,19 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import type { Express } from 'express';
+import { Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  assertCountsKeysKnownToTiers,
+  assertCountsOnlyActiveTiers,
+  canonicalActiveCouponCounts,
+  normalizeCouponCountsInput,
+} from '../calc/coupon-counts.util';
+import {
+  getUploadDir,
+  safeUnlinkUploadByKey,
+} from '../uploads/upload-storage.util';
 import {
   deviationYen,
   taxFreeCardAmountYen,
@@ -14,32 +25,78 @@ import {
 import { addCalendarDays } from '../common/calendar-date';
 import { assertValidRange, labelFromMinutes } from './time-range';
 
+/** 与 `TaxFreeCardTier` 表字段一致（显式形状，避免 Client 与 schema 不同步时的推断偏差）。 */
+type TaxFreeTierRow = {
+  id: string;
+  denominationYen: number;
+  sortOrder: number;
+  active: boolean;
+};
+
 export type AuthUser = { userId: string; role: Role };
 
 @Injectable()
 export class DailyReportsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async computeAndValidate(
+  /** 对同一日报的附件 POST 串行化，减轻覆盖写入时的竞态 */
+  private readonly photoUploadByReport = new Map<string, Promise<unknown>>();
+
+  private withUploadSerialized<T>(reportId: string, fn: () => Promise<T>): Promise<T> {
+    const prev = this.photoUploadByReport.get(reportId) ?? Promise.resolve();
+    const next = prev.then(() => fn());
+    this.photoUploadByReport.set(reportId, next);
+    void next.finally(() => {
+      if (this.photoUploadByReport.get(reportId) === next) {
+        this.photoUploadByReport.delete(reportId);
+      }
+    });
+    return next as Promise<T>;
+  }
+
+  /**
+   * 在 multer 已落盘之后调用：依次将 DDN / 免税券附件关联到 DB，并删除旧文件。
+   */
+  async applyUploadedPhotos(
+    id: string,
+    user: AuthUser,
+    files: { ddn?: Express.Multer.File[]; taxFree?: Express.Multer.File[] },
+  ) {
+    return this.withUploadSerialized(id, async () => {
+      const base = '/uploads/';
+      if (files.ddn?.[0]) {
+        await this.setPhotoKey(id, user, 'ddn', base + files.ddn[0].filename);
+      }
+      if (files.taxFree?.[0]) {
+        await this.setPhotoKey(id, user, 'taxFree', base + files.taxFree[0].filename);
+      }
+      return this.findOne(user, id);
+    });
+  }
+
+  private computeAndValidate(
     data: {
       chargeNightPackYen: number;
       productSalesYen: number;
-      taxFreeTier1Count: number;
-      taxFreeTier2Count: number;
-      taxFreeTier3Count: number;
+      taxFreeCouponCounts: Record<string, number>;
       newageYen: number;
       airpayQrYen: number;
       cashTotalYen: number;
       deviationReason: string | null | undefined;
     },
-    tiers: { denominationYen: number; sortOrder: number }[],
+    allTiers: { id: string; denominationYen: number; active: boolean }[],
+    opts?: { allowInactiveStoredTierKeys?: boolean },
   ) {
+    const activeIds = new Set(
+      allTiers.filter((t) => t.active).map((t) => t.id),
+    );
+    const knownIds = new Set(allTiers.map((t) => t.id));
+    assertCountsKeysKnownToTiers(data.taxFreeCouponCounts, knownIds);
+    if (!opts?.allowInactiveStoredTierKeys) {
+      assertCountsOnlyActiveTiers(data.taxFreeCouponCounts, activeIds);
+    }
     const ts = totalSalesYen(data.chargeNightPackYen, data.productSalesYen);
-    const taxFree = taxFreeCardAmountYen(tiers, [
-      data.taxFreeTier1Count,
-      data.taxFreeTier2Count,
-      data.taxFreeTier3Count,
-    ]);
+    const taxFree = taxFreeCardAmountYen(allTiers, data.taxFreeCouponCounts);
     const dev = deviationYen(
       ts,
       data.newageYen,
@@ -72,9 +129,7 @@ export class DailyReportsService {
       endMinuteOfDay: number;
       chargeNightPackYen: number;
       productSalesYen: number;
-      taxFreeTier1Count: number;
-      taxFreeTier2Count: number;
-      taxFreeTier3Count: number;
+      taxFreeCouponCounts: Record<string, unknown>;
       newageYen: number;
       airpayQrYen: number;
       cashTotalYen: number;
@@ -95,29 +150,36 @@ export class DailyReportsService {
       createdByUserId = dto.createdByUserId;
     }
 
-    const [shift, person, tiers] = await Promise.all([
+    const [shift, person, tiersLoaded] = await Promise.all([
       this.prisma.shift.findUnique({ where: { id: dto.shiftId } }),
       this.prisma.responsiblePerson.findFirst({
         where: { id: dto.responsiblePersonId, active: true },
       }),
       this.prisma.taxFreeCardTier.findMany({ orderBy: { sortOrder: 'asc' } }),
     ]);
+    const allTiers = tiersLoaded as TaxFreeTierRow[];
     if (!shift?.active) throw new BadRequestException('Invalid shift');
     if (!person) throw new BadRequestException('Invalid responsible person');
 
-    const computed = await this.computeAndValidate(
+    const activeTierIds = allTiers
+      .filter((t) => t.active)
+      .map((t) => t.id);
+    const countsNorm = normalizeCouponCountsInput(dto.taxFreeCouponCounts);
+    assertCountsOnlyActiveTiers(countsNorm, new Set(activeTierIds));
+    const counts = canonicalActiveCouponCounts(countsNorm, activeTierIds);
+
+    const computed = this.computeAndValidate(
       {
         chargeNightPackYen: dto.chargeNightPackYen,
         productSalesYen: dto.productSalesYen,
-        taxFreeTier1Count: dto.taxFreeTier1Count,
-        taxFreeTier2Count: dto.taxFreeTier2Count,
-        taxFreeTier3Count: dto.taxFreeTier3Count,
+        taxFreeCouponCounts: counts,
         newageYen: dto.newageYen,
         airpayQrYen: dto.airpayQrYen,
         cashTotalYen: dto.cashTotalYen,
         deviationReason: dto.deviationReason,
       },
-      tiers,
+      allTiers,
+      { allowInactiveStoredTierKeys: false },
     );
 
     const existing = await this.prisma.dailyReport.findUnique({
@@ -147,9 +209,7 @@ export class DailyReportsService {
         ),
         chargeNightPackYen: dto.chargeNightPackYen,
         productSalesYen: dto.productSalesYen,
-        taxFreeTier1Count: dto.taxFreeTier1Count,
-        taxFreeTier2Count: dto.taxFreeTier2Count,
-        taxFreeTier3Count: dto.taxFreeTier3Count,
+        taxFreeCouponCounts: counts as Prisma.InputJsonValue,
         newageYen: dto.newageYen,
         airpayQrYen: dto.airpayQrYen,
         cashTotalYen: dto.cashTotalYen,
@@ -157,30 +217,57 @@ export class DailyReportsService {
         ...computed,
         status: 'approved',
         createdByUserId,
-      },
+      } as unknown as Prisma.DailyReportUncheckedCreateInput,
     });
   }
 
-  async update(user: AuthUser, id: string, dto: Partial<{
-    reportDate: string;
-    shiftId: string;
-    responsiblePersonId: string;
-    startMinuteOfDay: number;
-    endMinuteOfDay: number;
-    chargeNightPackYen: number;
-    productSalesYen: number;
-    taxFreeTier1Count: number;
-    taxFreeTier2Count: number;
-    taxFreeTier3Count: number;
-    newageYen: number;
-    airpayQrYen: number;
-    cashTotalYen: number;
-    deviationReason?: string;
-  }>) {
-    const row = await this.prisma.dailyReport.findUnique({ where: { id } });
-    if (!row) throw new NotFoundException();
+  async update(
+    user: AuthUser,
+    id: string,
+    dto: Partial<{
+      reportDate: string;
+      shiftId: string;
+      responsiblePersonId: string;
+      startMinuteOfDay: number;
+      endMinuteOfDay: number;
+      chargeNightPackYen: number;
+      productSalesYen: number;
+      taxFreeCouponCounts: Record<string, unknown>;
+      newageYen: number;
+      airpayQrYen: number;
+      cashTotalYen: number;
+      deviationReason?: string;
+    }>,
+  ) {
+    const [rowLoaded, tiersForMergeLoaded] = await Promise.all([
+      this.prisma.dailyReport.findUnique({ where: { id } }),
+      this.prisma.taxFreeCardTier.findMany({
+        orderBy: { sortOrder: 'asc' },
+      }),
+    ]);
+    if (!rowLoaded) throw new NotFoundException();
+    const row = rowLoaded as typeof rowLoaded & {
+      taxFreeCouponCounts: Prisma.JsonValue | null;
+    };
+    const allTiersForMerge = tiersForMergeLoaded as TaxFreeTierRow[];
     if (user.role === Role.WEBMASTER && row.createdByUserId !== user.userId) {
       throw new ForbiddenException();
+    }
+    const activeIds = new Set(
+      allTiersForMerge.filter((t) => t.active).map((t) => t.id),
+    );
+    const prev = normalizeCouponCountsInput(row.taxFreeCouponCounts);
+
+    let nextCounts: Record<string, number>;
+    if (dto.taxFreeCouponCounts !== undefined) {
+      const client = normalizeCouponCountsInput(dto.taxFreeCouponCounts);
+      assertCountsOnlyActiveTiers(client, activeIds);
+      nextCounts = { ...prev };
+      for (const id of activeIds) {
+        nextCounts[id] = id in client ? client[id]! : (prev[id] ?? 0);
+      }
+    } else {
+      nextCounts = prev;
     }
 
     const next = {
@@ -191,9 +278,7 @@ export class DailyReportsService {
       endMinuteOfDay: dto.endMinuteOfDay ?? row.endMinuteOfDay,
       chargeNightPackYen: dto.chargeNightPackYen ?? row.chargeNightPackYen,
       productSalesYen: dto.productSalesYen ?? row.productSalesYen,
-      taxFreeTier1Count: dto.taxFreeTier1Count ?? row.taxFreeTier1Count,
-      taxFreeTier2Count: dto.taxFreeTier2Count ?? row.taxFreeTier2Count,
-      taxFreeTier3Count: dto.taxFreeTier3Count ?? row.taxFreeTier3Count,
+      taxFreeCouponCounts: nextCounts,
       newageYen: dto.newageYen ?? row.newageYen,
       airpayQrYen: dto.airpayQrYen ?? row.airpayQrYen,
       cashTotalYen: dto.cashTotalYen ?? row.cashTotalYen,
@@ -214,22 +299,18 @@ export class DailyReportsService {
     if (!shift?.active) throw new BadRequestException('Invalid shift');
     if (!person?.active) throw new BadRequestException('Invalid responsible person');
 
-    const tiers = await this.prisma.taxFreeCardTier.findMany({
-      orderBy: { sortOrder: 'asc' },
-    });
-    const computed = await this.computeAndValidate(
+    const computed = this.computeAndValidate(
       {
         chargeNightPackYen: next.chargeNightPackYen,
         productSalesYen: next.productSalesYen,
-        taxFreeTier1Count: next.taxFreeTier1Count,
-        taxFreeTier2Count: next.taxFreeTier2Count,
-        taxFreeTier3Count: next.taxFreeTier3Count,
+        taxFreeCouponCounts: nextCounts,
         newageYen: next.newageYen,
         airpayQrYen: next.airpayQrYen,
         cashTotalYen: next.cashTotalYen,
         deviationReason: next.deviationReason,
       },
-      tiers,
+      allTiersForMerge,
+      { allowInactiveStoredTierKeys: true },
     );
 
     const conflict = await this.prisma.dailyReport.findFirst({
@@ -259,15 +340,13 @@ export class DailyReportsService {
         ),
         chargeNightPackYen: next.chargeNightPackYen,
         productSalesYen: next.productSalesYen,
-        taxFreeTier1Count: next.taxFreeTier1Count,
-        taxFreeTier2Count: next.taxFreeTier2Count,
-        taxFreeTier3Count: next.taxFreeTier3Count,
+        taxFreeCouponCounts: next.taxFreeCouponCounts as Prisma.InputJsonValue,
         newageYen: next.newageYen,
         airpayQrYen: next.airpayQrYen,
         cashTotalYen: next.cashTotalYen,
         deviationReason: next.deviationReason?.trim() || null,
         ...computed,
-      },
+      } as unknown as Prisma.DailyReportUncheckedUpdateInput,
     });
   }
 
@@ -287,7 +366,7 @@ export class DailyReportsService {
 
   list(
     user: AuthUser,
-    q: { from?: string; to?: string; reportDate?: string },
+    q: { from?: string; to?: string; reportDate?: string; limit?: number },
   ) {
     const where: {
       createdByUserId?: string;
@@ -310,6 +389,7 @@ export class DailyReportsService {
         shift: true,
         createdBy: { select: { id: true, username: true, role: true } },
       },
+      ...(q.limit != null ? { take: q.limit } : {}),
     });
   }
 
@@ -360,12 +440,18 @@ export class DailyReportsService {
     if (user.role === Role.WEBMASTER && row.createdByUserId !== user.userId) {
       throw new ForbiddenException();
     }
-    return this.prisma.dailyReport.update({
+    const oldKey =
+      field === 'ddn' ? row.ddnPhotoKey : row.taxFreeCardPhotoKey;
+    const updated = await this.prisma.dailyReport.update({
       where: { id },
       data:
         field === 'ddn'
           ? { ddnPhotoKey: key }
           : { taxFreeCardPhotoKey: key },
     });
+    if (oldKey && oldKey !== key) {
+      await safeUnlinkUploadByKey(oldKey, getUploadDir());
+    }
+    return updated;
   }
 }

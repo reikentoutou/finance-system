@@ -11,6 +11,11 @@ const router = createRouter({
       component: () => import('@/views/SetupView.vue'),
     },
     {
+      path: '/service-unavailable',
+      name: 'service-unavailable',
+      component: () => import('@/views/ServiceUnavailableView.vue'),
+    },
+    {
       path: '/login',
       name: 'login',
       component: () => import('@/views/LoginView.vue'),
@@ -77,14 +82,25 @@ router.beforeEach(async (to) => {
   if (setup.setupCompleted === null) {
     await setup.fetchStatus();
   }
-  if (!setup.setupCompleted && to.name !== 'setup') {
+  if (setup.statusFetchFailed) {
+    if (to.name === 'service-unavailable') return true;
+    return {
+      name: 'service-unavailable',
+      query: to.fullPath && to.fullPath !== '/' ? { redirect: to.fullPath } : {},
+    };
+  }
+  if (
+    !setup.setupCompleted &&
+    to.name !== 'setup' &&
+    to.name !== 'service-unavailable'
+  ) {
     return { name: 'setup' };
   }
   if (setup.setupCompleted && to.name === 'setup') {
     return { name: 'login' };
   }
   const auth = useAuthStore();
-  const publicNames = ['login', 'setup'];
+  const publicNames = ['login', 'setup', 'service-unavailable'];
   if (publicNames.includes(String(to.name))) return true;
   if (!auth.token) return { name: 'login', query: { redirect: to.fullPath } };
   const need = to.meta.role as string | undefined;

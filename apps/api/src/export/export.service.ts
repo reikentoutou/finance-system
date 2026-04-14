@@ -5,7 +5,10 @@ import puppeteer from 'puppeteer';
 import { PrismaService } from '../prisma/prisma.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import type { Period } from '../analytics/period-range';
-import { deviationYenFromStoredFields } from '../calc/daily-report-calc';
+import {
+  deviationYenFromStoredFields,
+  taxFreeCardAmountYen,
+} from '../calc/daily-report-calc';
 
 function periodLabelJa(p: Period): string {
   switch (p) {
@@ -63,17 +66,26 @@ export class ExportService {
       { header: '項目', key: 'k', width: 24 },
       { header: '値', key: 'v', width: 40 },
     ];
+    const denomById = await this.loadTierDenomById();
     const lines: { k: string; v: string | number }[] = [
       { k: '日付', v: row.reportDate },
-      { k: '班次', v: row.shiftNameSnapshot },
+      { k: 'シフト', v: row.shiftNameSnapshot },
       { k: '時間帯', v: row.timeRangeLabelSnapshot },
       { k: '責任者', v: row.responsiblePersonSnapshot },
       { k: 'チャージ・ナイト/商品売上', v: `${row.chargeNightPackYen} / ${row.productSalesYen}` },
       { k: '総売上', v: row.totalSalesYen },
-      { k: '免税カード額', v: row.taxFreeCardAmountYen },
+      {
+        k: '10％クーポン（枚数・面額別）',
+        v: this.formatTaxFreeCountsDisplay(
+          row.taxFreeCouponCounts,
+          denomById,
+          row.taxFreeCardAmountYen,
+        ),
+      },
+      { k: '10％クーポン額', v: row.taxFreeCardAmountYen },
       { k: '偏差', v: deviationYenFromStoredFields(row) },
       { k: '偏差理由', v: row.deviationReason ?? '' },
-      { k: '原填报', v: row.createdBy.username },
+      { k: '提出者', v: row.createdBy.username },
     ];
     lines.forEach((l) => ws.addRow(l));
 
@@ -95,19 +107,28 @@ export class ExportService {
     });
     if (!row) throw new NotFoundException();
 
+    const denomById = await this.loadTierDenomById();
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
 <style>body{font-family:sans-serif} table{border-collapse:collapse;width:100%} td{border:1px solid #333;padding:6px}</style>
 </head><body><h2>日報</h2><table>
 ${[
   ['日付', row.reportDate],
-  ['班次', row.shiftNameSnapshot],
+  ['シフト', row.shiftNameSnapshot],
   ['時間帯', row.timeRangeLabelSnapshot],
   ['責任者', row.responsiblePersonSnapshot],
   ['総売上', row.totalSalesYen],
-  ['免税カード額', row.taxFreeCardAmountYen],
+  [
+    '10％クーポン（枚数）',
+    this.formatTaxFreeCountsDisplay(
+      row.taxFreeCouponCounts,
+      denomById,
+      row.taxFreeCardAmountYen,
+    ),
+  ],
+  ['10％クーポン額', row.taxFreeCardAmountYen],
   ['偏差', deviationYenFromStoredFields(row)],
   ['偏差理由', row.deviationReason ?? ''],
-  ['原填报', row.createdBy.username],
+  ['提出者', row.createdBy.username],
 ]
   .map(
     ([k, v]) =>
@@ -136,23 +157,25 @@ ${[
 
     if (period === 'day') {
       const registerFloat = await this.getRegisterFloatAmount();
+      const denomById = await this.loadTierDenomById();
       const sorted = this.sortRowsByShift(data.rows);
       const gt = this.aggregateGrandTotalsFromRows(data.rows);
       ws.addRow(['業務日（白1 開始日）', data.range.start]);
-      ws.addRow(['— 合計（全日班次・縦表） —', '']);
+      ws.addRow(['— 合計（全日・シフト縦表） —', '']);
       for (const [k, v] of this.grandTotalPairs(gt)) {
         ws.addRow([k, v]);
       }
       ws.addRow([]);
       for (const r of sorted) {
         ws.addRow([`【${r.shiftNameSnapshot}】`]);
-        for (const [k, v] of this.shiftDetailPairs(r, registerFloat)) {
+        for (const [k, v] of this.shiftDetailPairs(r, registerFloat, denomById)) {
           ws.addRow([k, v]);
         }
         ws.addRow([]);
       }
     } else {
       const registerFloat = await this.getRegisterFloatAmount();
+      const denomById = await this.loadTierDenomById();
       const gt = this.aggregateGrandTotalsFromRows(data.rows);
       ws.addRow(['集計種別', periodLabelJa(period)]);
       ws.addRow(['期間', `${data.range.start} – ${data.range.end}`]);
@@ -161,7 +184,7 @@ ${[
         ws.addRow([k, v]);
       }
       ws.addRow([]);
-      ws.addRow(['— 按業務日・班次明細 —', '']);
+      ws.addRow(['— 業務日・シフト別明細 —', '']);
       const groups = this.groupRowsByReportDate(data.rows);
       if (groups.length === 0) {
         ws.addRow(['（該当期間の日報がありません）', '']);
@@ -171,19 +194,19 @@ ${[
           const sorted = this.sortRowsByShift(list);
           for (const r of sorted) {
             ws.addRow([`  【${r.shiftNameSnapshot}】`, '']);
-            for (const [k, v] of this.shiftDetailPairs(r, registerFloat)) {
+            for (const [k, v] of this.shiftDetailPairs(r, registerFloat, denomById)) {
               ws.addRow([`    ${k}`, v]);
             }
             ws.addRow([]);
           }
         }
       }
-      ws.addRow(['— 班次別合算（縦表） —', '']);
+      ws.addRow(['— シフト別合算（縦表） —', '']);
       for (const b of data.byShift) {
         ws.addRow([`【${b.shiftName}】`, '']);
         ws.addRow(['  件数', b.count]);
         ws.addRow(['  総売上', b.totalSalesYen]);
-        ws.addRow(['  免税額', b.taxFreeCardAmountYen]);
+        ws.addRow(['  10％クーポン額', b.taxFreeCardAmountYen]);
         ws.addRow(['  偏差', b.deviationYen]);
         ws.addRow([]);
       }
@@ -209,11 +232,16 @@ ${[
     let html: string;
     if (period === 'day') {
       const registerFloat = await this.getRegisterFloatAmount();
+      const denomById = await this.loadTierDenomById();
       const sorted = this.sortRowsByShift(data.rows);
       const gt = this.aggregateGrandTotalsFromRows(data.rows);
       const blocks =
         sorted.length > 0
-          ? sorted.map((r) => this.businessDayShiftSectionHtml(r, registerFloat)).join('')
+          ? sorted
+              .map((r) =>
+                this.businessDayShiftSectionHtml(r, registerFloat, denomById),
+              )
+              .join('')
           : '<p>（該当業務日の日報がありません）</p>';
       const title = formatJaDate(data.range.start);
       html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
@@ -230,16 +258,18 @@ table.shift td:first-child{width:38%;background:#f5f5f5}
 </style></head><body>
 <h1>${escapeHtml(title)} 集計</h1>
 <p>業務日（白1 開始日）: <strong>${escapeHtml(data.range.start)}</strong></p>
-<h2 class="sub">合計（全日班次・縦表）</h2>
+<h2 class="sub">合計（全日・シフト縦表）</h2>
 ${this.verticalGrandTotalsTableHtml(gt)}
-${blocks ? `<h2 class="sub">班次別内訳</h2>${blocks}` : ''}
+${blocks ? `<h2 class="sub">シフト別内訳</h2>${blocks}` : ''}
 </body></html>`;
     } else {
       const registerFloat = await this.getRegisterFloatAmount();
+      const denomById = await this.loadTierDenomById();
       html = this.buildMultiDayPeriodPdfHtml(
         data,
         period,
         registerFloat,
+        denomById,
       );
     }
     const buf = await this.renderPdf(html);
@@ -258,11 +288,65 @@ ${blocks ? `<h2 class="sub">班次別内訳</h2>${blocks}` : ''}
     return s?.registerFloatAmount ?? 0;
   }
 
+  private async loadTierDenomById(): Promise<Map<string, number>> {
+    const tiers = await this.prisma.taxFreeCardTier.findMany({
+      select: { id: true, denominationYen: true },
+    });
+    return new Map(tiers.map((t) => [t.id, t.denominationYen]));
+  }
+
+  /**
+   * 枚数行按当前主数据面额展示；若与保存时不一致则并列展示已存 taxFreeCardAmountYen 与按现行主数据重算值。
+   */
+  private formatTaxFreeCountsDisplay(
+    countsJson: unknown,
+    denomById: Map<string, number>,
+    storedTaxFreeYen?: number,
+  ): string {
+    if (
+      countsJson == null ||
+      typeof countsJson !== 'object' ||
+      Array.isArray(countsJson)
+    ) {
+      return '—';
+    }
+    const c = countsJson as Record<string, unknown>;
+    const normalized: Record<string, number> = {};
+    const parts: string[] = [];
+    for (const [id, raw] of Object.entries(c)) {
+      const n =
+        typeof raw === 'number' && Number.isFinite(raw)
+          ? Math.trunc(raw)
+          : parseInt(String(raw), 10);
+      if (!Number.isFinite(n) || n < 0) continue;
+      normalized[id] = n;
+      if (n === 0) continue;
+      const den = denomById.get(id);
+      parts.push(
+        den != null
+          ? `${den.toLocaleString('ja-JP')} 円×${n} 枚`
+          : `（不明券種）×${n} 枚`,
+      );
+    }
+    const line = parts.length ? parts.join('　') : '—';
+    if (storedTaxFreeYen == null) {
+      return line;
+    }
+    const tiersForCalc = [...denomById.entries()].map(
+      ([id, denominationYen]) => ({ id, denominationYen }),
+    );
+    const recalc = taxFreeCardAmountYen(tiersForCalc, normalized);
+    if (recalc !== storedTaxFreeYen) {
+      return `${line}（※保存済みクーポン額 ${storedTaxFreeYen} 円／現行マスタ再計算 ${recalc} 円）`;
+    }
+    return line;
+  }
+
   private sortRowsByShift(rows: SummaryRow[]): SummaryRow[] {
     return [...rows].sort((a, b) => a.shift.sortOrder - b.shift.sortOrder);
   }
 
-  /** 業務日（reportDate）昇順でグループ */
+  /** 按业务日 reportDate 升序分组 */
   private groupRowsByReportDate(rows: SummaryRow[]): [string, SummaryRow[]][] {
     const m = new Map<string, SummaryRow[]>();
     for (const r of rows) {
@@ -273,11 +357,12 @@ ${blocks ? `<h2 class="sub">班次別内訳</h2>${blocks}` : ''}
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }
 
-  /** 週・月・四半期・年：期間内を業務日ごとに网管様式の明細＋班次汇总 */
+  /** 周/月/季/年：区间内按业务日拆分日报样式明细，并做分班次汇总 */
   private buildMultiDayPeriodPdfHtml(
     data: Awaited<ReturnType<AnalyticsService['summary']>>,
     period: Period,
     registerFloat: number,
+    denomById: Map<string, number>,
   ): string {
     const groups = this.groupRowsByReportDate(data.rows);
     const dayBlocks =
@@ -286,7 +371,9 @@ ${blocks ? `<h2 class="sub">班次別内訳</h2>${blocks}` : ''}
         : groups
             .map(([date, list]) => {
               const inner = this.sortRowsByShift(list)
-                .map((r) => this.businessDayShiftSectionHtml(r, registerFloat))
+                .map((r) =>
+                  this.businessDayShiftSectionHtml(r, registerFloat, denomById),
+                )
                 .join('');
               return `<h2 class="bizday">業務日 ${escapeHtml(date)}</h2>${inner}`;
             })
@@ -316,7 +403,7 @@ table.shift td:first-child{width:38%;background:#f5f5f5}
 <h2 class="sub">合計（期間内・縦表）</h2>
 ${this.verticalGrandTotalsTableHtml(gt)}
 ${dayBlocks}
-<h2 class="sub">班次別合算（縦表）</h2>
+<h2 class="sub">シフト別合算（縦表）</h2>
 ${byShiftVert}
 </body></html>`;
   }
@@ -349,7 +436,7 @@ ${byShiftVert}
   private grandTotalPairs(t: GrandTotalsAgg): [string, string | number][] {
     return [
       ['総売上', `${t.totalSalesYen} 円`],
-      ['免税額', `${t.taxFreeCardAmountYen} 円`],
+      ['10％クーポン額', `${t.taxFreeCardAmountYen} 円`],
       ['Newage売上', `${t.newageYen} 円`],
       ['Airpay＋QR売上', `${t.airpayQrYen} 円`],
       ['現金売上', `${t.cashTotalYen} 円`],
@@ -376,13 +463,13 @@ ${byShiftVert}
       deviationYen: number;
     }[],
   ): string {
-    if (!byShift.length) return '<p>（班次データなし）</p>';
+    if (!byShift.length) return '<p>（シフトデータなし）</p>';
     return byShift
       .map((b) => {
         const rows = [
           ['件数', String(b.count)],
           ['総売上', `${b.totalSalesYen} 円`],
-          ['免税額', `${b.taxFreeCardAmountYen} 円`],
+          ['10％クーポン額', `${b.taxFreeCardAmountYen} 円`],
           ['偏差', `${b.deviationYen} 円`],
         ]
           .map(
@@ -398,6 +485,7 @@ ${byShiftVert}
   private shiftDetailPairs(
     r: SummaryRow,
     registerFloat: number,
+    denomById: Map<string, number>,
   ): [string, string | number][] {
     const cashIn = r.cashTotalYen + registerFloat;
     return [
@@ -407,10 +495,14 @@ ${byShiftVert}
       ['商品売上', `${r.productSalesYen} 円`],
       ['総売上', `${r.totalSalesYen} 円`],
       [
-        '免税カード（1〜3档 枚数）',
-        `${r.taxFreeTier1Count} / ${r.taxFreeTier2Count} / ${r.taxFreeTier3Count}`,
+        '10％クーポン（枚数・面額別）',
+        this.formatTaxFreeCountsDisplay(
+          r.taxFreeCouponCounts,
+          denomById,
+          r.taxFreeCardAmountYen,
+        ),
       ],
-      ['免税カード額', `${r.taxFreeCardAmountYen} 円`],
+      ['10％クーポン額', `${r.taxFreeCardAmountYen} 円`],
       ['Newage', `${r.newageYen} 円`],
       ['Airpay+QR', `${r.airpayQrYen} 円`],
       ['レジ実点（底銭込）', `${cashIn} 円`],
@@ -418,15 +510,16 @@ ${byShiftVert}
       ['現金合計（実点 − 底銭）', `${r.cashTotalYen} 円`],
       ['偏差', `${deviationYenFromStoredFields(r)} 円`],
       ['偏差理由', r.deviationReason?.trim() || '—'],
-      ['原填报', r.createdBy.username],
+      ['提出者', r.createdBy.username],
     ];
   }
 
   private businessDayShiftSectionHtml(
     r: SummaryRow,
     registerFloat: number,
+    denomById: Map<string, number>,
   ): string {
-    const rows = this.shiftDetailPairs(r, registerFloat)
+    const rows = this.shiftDetailPairs(r, registerFloat, denomById)
       .map(
         ([k, v]) =>
           `<tr><td>${escapeHtml(k)}</td><td>${escapeHtml(String(v))}</td></tr>`,

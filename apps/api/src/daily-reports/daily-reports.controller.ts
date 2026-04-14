@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -13,6 +14,7 @@ import {
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import {
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   Matches,
@@ -22,6 +24,24 @@ import {
 import { diskStorage } from 'multer';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
+
+function pickUploadExtension(file: Express.Multer.File): string {
+  const name = file.originalname || '';
+  if (name.includes('.')) {
+    return name.slice(name.lastIndexOf('.')).toLowerCase();
+  }
+  const mt = (file.mimetype || '').toLowerCase();
+  if (mt === 'application/pdf') return '.pdf';
+  if (mt === 'image/jpeg' || mt === 'image/jpg') return '.jpg';
+  if (mt === 'image/png') return '.png';
+  if (mt === 'image/webp') return '.webp';
+  if (mt === 'image/gif') return '.gif';
+  if (mt.startsWith('image/')) {
+    const sub = mt.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
+    return `.${sub}`;
+  }
+  return '.bin';
+}
 import type { Request } from 'express';
 import { Role } from '@prisma/client';
 import { DailyReportsService } from './daily-reports.service';
@@ -55,17 +75,9 @@ class CreateDailyReportDto {
   @Min(0)
   productSalesYen!: number;
 
-  @IsInt()
-  @Min(0)
-  taxFreeTier1Count!: number;
-
-  @IsInt()
-  @Min(0)
-  taxFreeTier2Count!: number;
-
-  @IsInt()
-  @Min(0)
-  taxFreeTier3Count!: number;
+  /** 券种 id → 枚数（仅允许有效券种 id） */
+  @IsObject()
+  taxFreeCouponCounts!: Record<string, unknown>;
 
   @IsInt()
   @Min(0)
@@ -83,7 +95,7 @@ class CreateDailyReportDto {
   @IsString()
   deviationReason?: string;
 
-  /** Admin POST 补录时必填：归属网管 user id */
+  /** 管理员 POST 补录时必填：归属网管的用户 id */
   @IsOptional()
   @IsString()
   createdByUserId?: string;
@@ -125,19 +137,8 @@ class UpdateDailyReportDto {
   productSalesYen?: number;
 
   @IsOptional()
-  @IsInt()
-  @Min(0)
-  taxFreeTier1Count?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  taxFreeTier2Count?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  taxFreeTier3Count?: number;
+  @IsObject()
+  taxFreeCouponCounts?: Record<string, unknown>;
 
   @IsOptional()
   @IsInt()
@@ -174,8 +175,17 @@ export class DailyReportsController {
     @Query('from') from?: string,
     @Query('to') to?: string,
     @Query('reportDate') reportDate?: string,
+    @Query('limit') limitRaw?: string,
   ) {
-    return this.svc.list(this.auth(req), { from, to, reportDate });
+    let limit: number | undefined;
+    if (limitRaw !== undefined && limitRaw !== '') {
+      const n = parseInt(limitRaw, 10);
+      if (!Number.isFinite(n) || n < 1) {
+        throw new BadRequestException('limit must be a positive integer');
+      }
+      limit = Math.min(n, 5000);
+    }
+    return this.svc.list(this.auth(req), { from, to, reportDate, limit });
   }
 
   /** 使用两段路径，避免被 @Get(':id') 当成 id=business-day-hint → 404 */
@@ -220,10 +230,7 @@ export class DailyReportsController {
             cb(null, dir);
           },
           filename: (_req, file, cb) => {
-            const ext = file.originalname.includes('.')
-              ? file.originalname.slice(file.originalname.lastIndexOf('.'))
-              : '.jpg';
-            cb(null, `${randomUUID()}${ext}`);
+            cb(null, `${randomUUID()}${pickUploadExtension(file)}`);
           },
         }),
         limits: { fileSize: 8 * 1024 * 1024 },
@@ -236,18 +243,6 @@ export class DailyReportsController {
     @UploadedFiles()
     files: { ddn?: Express.Multer.File[]; taxFree?: Express.Multer.File[] },
   ) {
-    const base = '/uploads/';
-    if (files.ddn?.[0]) {
-      await this.svc.setPhotoKey(id, this.auth(req), 'ddn', base + files.ddn[0].filename);
-    }
-    if (files.taxFree?.[0]) {
-      await this.svc.setPhotoKey(
-        id,
-        this.auth(req),
-        'taxFree',
-        base + files.taxFree[0].filename,
-      );
-    }
-    return this.svc.findOne(this.auth(req), id);
+    return this.svc.applyUploadedPhotos(id, this.auth(req), files);
   }
 }

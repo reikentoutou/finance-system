@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { http, setAuthToken } from '@/api/http';
+import { useSetupStore } from '@/stores/setup';
 
 export type Role = 'WEBMASTER' | 'ADMIN';
 
@@ -35,6 +36,7 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setAuthToken(null);
+    useSetupStore().resetSetupCache();
   }
 
   return { token, user, isAdmin, isWebmaster, login, logout };

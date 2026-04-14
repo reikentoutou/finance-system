@@ -1,0 +1,32 @@
+---
+description: apps/web 的 Vue skills 与实现前必读
+globs: apps/web/**
+alwaysApply: false
+---
+
+# Vue 前端（`apps/web`）
+
+## 优先级
+
+1. 根目录 **AGENTS.md** §4、§5 与本仓库现有代码。
+2. 下列 **`.agents/skills`** 中的 `SKILL.md`（与 AGENTS 冲突时以 AGENTS / 本仓库代码为准）。
+
+## 实现或重构前应阅读/对齐的文档
+
+按任务打开对应文件（路径相对仓库根）：
+
+| 场景 | 文件 |
+|------|------|
+| 通用 SFC、组合式、性能 | `.agents/skills/vue-best-practices/SKILL.md` |
+| 路由、守卫、导航 | `.agents/skills/vue-router-best-practices/SKILL.md` |
+| Pinia、store | `.agents/skills/vue-pinia-best-practices/SKILL.md` |
+| 抽取 composable | `.agents/skills/create-adaptable-composable/SKILL.md` |
+| 排错、怪异行为 | `.agents/skills/vue-debug-guides/SKILL.md` |
+
+## 按需再读
+
+- 测试：`.agents/skills/vue-testing-best-practices/SKILL.md`
+- JSX：`.agents/skills/vue-jsx-best-practices/SKILL.md`
+- Options API 遗留：`.agents/skills/vue-options-api-best-practices/SKILL.md`
+
+开始改代码前，用 **@** 将当前任务最相关的 `SKILL.md` 加入对话，以便约束实现与命名习惯。

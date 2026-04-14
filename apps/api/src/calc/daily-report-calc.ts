@@ -1,6 +1,6 @@
 import { TaxFreeCardTier } from '@prisma/client';
 
-/** 総売上 */
+/** 总销售额 */
 export function totalSalesYen(
   chargeNightPackYen: number,
   productSalesYen: number,
@@ -9,26 +9,29 @@ export function totalSalesYen(
 }
 
 /**
- * 免税カード額：各档 (枚数 × 面额) の合計に対し 10%（整数、切り捨て）
+ * 10% 券面额：各券种（枚数 × 面额）合计后再取 10%（整数向下取整）。
+ * `tiers` 仅作 id→面额映射，须含已停用券种以便解析历史 JSON 中的 id。
  */
 export function taxFreeCardAmountYen(
-  tiers: Pick<TaxFreeCardTier, 'denominationYen' | 'sortOrder'>[],
-  counts: [number, number, number],
+  tiers: Pick<TaxFreeCardTier, 'id' | 'denominationYen'>[],
+  countsByTierId: Record<string, number>,
 ): number {
-  const sorted = [...tiers].sort((a, b) => a.sortOrder - b.sortOrder);
+  const byId = new Map(tiers.map((t) => [t.id, t.denominationYen]));
   let base = 0;
-  for (let i = 0; i < 3; i++) {
-    const t = sorted[i];
-    if (!t) continue;
-    base += counts[i] * t.denominationYen;
+  for (const [id, rawC] of Object.entries(countsByTierId)) {
+    const c = Math.max(0, Math.floor(Number(rawC)) || 0);
+    if (c === 0) continue;
+    const den = byId.get(id);
+    if (den == null) continue;
+    base += c * den;
   }
   return Math.floor((base * 10) / 100);
 }
 
 /**
- * 偏差：Newage + Airpay+QR + 現金合計 + 免税カード額 − 総売上
- * 現金合計＝レジ実点（底銭込）− レジ底銭（API には控除後の net を cashTotalYen で保存）
- * 負のとき理由必須
+ * 偏差：Newage + Airpay+QR + 现金合计 + 10% 券面额 − 总销售额。
+ * 现金合计 = 收银实点（含底钱）− 底钱（API 以 cashTotalYen 存扣减后的净值）。
+ * 为负时须填理由（由上层校验）。
  */
 export function deviationYen(
   totalSales: number,
@@ -47,8 +50,8 @@ export function deviationYen(
 }
 
 /**
- * 一覧・集計・导出用：按当前保存的明细重算偏差（与 create/update 时公式一致）。
- * 避免历史行里 deviationYen 与 cashTotalYen 等字段不同步时出现错显。
+ * 列表/汇总/导出用：按已存字段重算偏差（与 create/update 时公式一致）。
+ * 避免历史行 deviationYen 与 cashTotalYen 等不一致时出现错误展示。
  */
 export function deviationYenFromStoredFields(row: {
   chargeNightPackYen: number;

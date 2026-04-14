@@ -10,6 +10,7 @@
 | `apps/web` | Vue 管理端与网管填报 |
 | `apps/desktop` | Electron：开发时加载本地 Web；**安装包内嵌 Node + API + 前端**，客户双击 exe 即可 |
 | `docs/` | 实施计划与文档索引 |
+| 根目录 **[AGENTS.md](./AGENTS.md)** | AI 助手与协作者约定（改动范围、Prisma、风格一致性） |
 
 ## 环境要求
 
@@ -38,6 +39,10 @@ cp apps/api/.env.example apps/api/.env
 pnpm run db:push
 pnpm run db:generate
 ```
+
+**`schema.prisma` 变更后**须执行 `pnpm run db:generate`（根目录 `pnpm install` 会触发 `apps/api` 的 `postinstall`，也会生成 Client）。若 `@prisma/client` 与当前 schema 不同步，可能出现日报等代码里「缺少字段」（例如 `TaxFreeCardTier.active`、`DailyReport.taxFreeCouponCounts`）的 TypeScript 误报；生成后若 IDE 仍红线，可执行 **TypeScript: Restart TS Server** 或重载窗口。
+
+**Cursor / VS Code（可选）**：编辑 `apps/web` 建议安装扩展 **Vue - Official**（原 Volar），以获得 `.vue` 语法高亮与类型提示。若扩展市场在线安装失败（日志中常见 `marketplace.cursorapi.com` 或 `net::ERR_FAILED`），可在浏览器下载对应 **`.vsix`**，再在编辑器中执行 **Extensions: Install from VSIX…** 手动安装。
 
 ## Windows 桌面安装包（自包含，客户双击 exe）
 
@@ -77,6 +82,16 @@ pnpm run pack:bundle:win
 生成 **`FinanceSystem-Portable-Bundle-<版本>.zip`**：内含 **自包含便携 exe** 与说明；客户同样 **只需解压后双击 exe**，无需 Node。
 
 说明：安装包体积较大（含 **Puppeteer** 等依赖），属正常。
+
+## 生产部署检查（Code review 落实项）
+
+| 项 | 说明 |
+|------|------|
+| **JWT_SECRET** | 设置强随机密钥；`NODE_ENV=production` 时若未设置 `JWT_SECRET`，API **拒绝启动**。 |
+| **CORS** | 前后端不同域时设置 `CORS_ORIGINS`（逗号分隔 Origin）；不设时开发态仍允许任意来源（与原先一致）。 |
+| **Prisma / DB** | `schema.prisma` 变更后必须对**实际使用的** `DATABASE_URL` 执行 `pnpm run db:push` 或 migrate，并执行 **`pnpm run db:generate`**，避免列不一致导致 500 或 TS 类型与库表脱节。 |
+| **/setup/bootstrap** | 初始化完成后再次调用会返回 **403**；公网部署时建议在网关限制 `/setup` 仅内网或一次性开放。 |
+| **上传文件** | `/uploads/` 下文件为可猜测 URL；高敏感场景需改为鉴权下载或短期签名 URL（当前未改实现，仅提醒）。 |
 
 ## GitHub Releases
 

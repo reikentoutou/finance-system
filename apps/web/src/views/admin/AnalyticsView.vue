@@ -3,7 +3,11 @@ import { onMounted, ref, watch, nextTick, computed } from 'vue';
 import * as echarts from 'echarts';
 import { http } from '@/api/http';
 import { todayTokyo } from '@/utils/tokyo';
-import { deviationYenFromStoredFields } from '@/utils/daily-report-calc';
+import {
+  deviationYenFromStoredFields,
+  formatCouponCountsLine,
+  type TaxTier,
+} from '@/utils/daily-report-calc';
 
 type Period = 'day' | 'week' | 'month' | 'quarter' | 'year';
 
@@ -14,9 +18,7 @@ type DayReportRow = {
   responsiblePersonSnapshot: string;
   chargeNightPackYen: number;
   productSalesYen: number;
-  taxFreeTier1Count: number;
-  taxFreeTier2Count: number;
-  taxFreeTier3Count: number;
+  taxFreeCouponCounts: Record<string, unknown>;
   newageYen: number;
   airpayQrYen: number;
   cashTotalYen: number;
@@ -32,6 +34,7 @@ const period = ref<Period>('week');
 const anchorDate = ref(todayTokyo());
 const loading = ref(false);
 const registerFloatAmount = ref(0);
+const taxTiers = ref<TaxTier[]>([]);
 const summary = ref<{
   range: { start: string; end: string };
   totals: { totalSalesYen: number; taxFreeCardAmountYen: number; deviationYen: number };
@@ -45,13 +48,17 @@ const summary = ref<{
   rows?: DayReportRow[];
 } | null>(null);
 
+function couponCountsLine(r: DayReportRow): string {
+  return formatCouponCountsLine(taxTiers.value, r.taxFreeCouponCounts ?? {});
+}
+
 const sortedDayRows = computed(() => {
   const rows = summary.value?.rows;
   if (!rows?.length) return [];
   return [...rows].sort((a, b) => a.shift.sortOrder - b.shift.sortOrder);
 });
 
-/** 期間内すべての日報行の合計（各班次の和） */
+/** 区间内所有日报行的合计（各班次之和） */
 const grandTotals = computed(() => {
   const rows = summary.value?.rows ?? [];
   let totalSalesYen = 0;
@@ -79,7 +86,7 @@ const grandTotals = computed(() => {
   };
 });
 
-/** 見出し用：2026年4月11日 / 週なら 4月7日～4月13日 */
+/** 标题用日期格式：如 2026年4月11日；选周时则为起止两段 */
 function formatJaDate(iso: string): string {
   const [y, m, d] = iso.split('-').map((x) => parseInt(x, 10));
   if (!y || !m || !d) return iso;
@@ -100,14 +107,16 @@ let chart: echarts.ECharts | null = null;
 async function load() {
   loading.value = true;
   try {
-    const [{ data }, { data: st }] = await Promise.all([
+    const [{ data }, { data: st }, { data: tiers }] = await Promise.all([
       http.get('/analytics/summary', {
         params: { period: period.value, anchorDate: anchorDate.value },
       }),
       http.get<{ registerFloatAmount?: number }>('/meta/settings'),
+      http.get<TaxTier[]>('/meta/tax-tiers'),
     ]);
     summary.value = data;
     registerFloatAmount.value = st?.registerFloatAmount ?? 0;
+    taxTiers.value = tiers ?? [];
     await nextTick();
     renderChart();
   } finally {
@@ -146,7 +155,7 @@ function rowDeviation(r: DayReportRow): number {
 onMounted(load);
 watch([period, anchorDate], load);
 
-/** 与 http 同一 baseURL（开发直连 3000），避免相对路径 fetch 落到 Vite 导致 period 丢失或错用默认周 */
+/** 与 http 实例相同 baseURL（开发环境直连 API），避免相对路径 fetch 丢失 period 等参数 */
 async function downloadAggregate(format: 'xlsx' | 'pdf') {
   const { data } = await http.get<Blob>('/export/aggregate', {
     params: {
@@ -182,8 +191,8 @@ async function downloadAggregate(format: 'xlsx' | 'pdf') {
       </el-form-item>
       <el-form-item>
         <el-button type="primary" @click="load">再集計</el-button>
-        <el-button @click="downloadAggregate('xlsx')">Excel 导出</el-button>
-        <el-button @click="downloadAggregate('pdf')">PDF 导出</el-button>
+        <el-button @click="downloadAggregate('xlsx')">Excel を出力</el-button>
+        <el-button @click="downloadAggregate('pdf')">PDF を出力</el-button>
       </el-form-item>
     </el-form>
 
@@ -191,7 +200,7 @@ async function downloadAggregate(format: 'xlsx' | 'pdf') {
       <h2 class="grand-headline">{{ summaryHeadline }}</h2>
       <p class="range-sub">
         <template v-if="period === 'day'">
-          業務日（白1→白2→夜班→次日早班）アンカー: {{ summary.range.start }} ／ 対象
+          業務日（白1→白2→夜番→翌早番）アンカー: {{ summary.range.start }} ／ 対象
           {{ grandTotals.count }} 件
         </template>
         <template v-else>
@@ -203,7 +212,7 @@ async function downloadAggregate(format: 'xlsx' | 'pdf') {
         <el-descriptions-item label="総売上">
           {{ grandTotals.totalSalesYen }} 円
         </el-descriptions-item>
-        <el-descriptions-item label="免税額">
+        <el-descriptions-item label="10％クーポン額">
           {{ grandTotals.taxFreeCardAmountYen }} 円
         </el-descriptions-item>
         <el-descriptions-item label="Newage売上">
@@ -223,10 +232,9 @@ async function downloadAggregate(format: 'xlsx' | 'pdf') {
         ※現金売上は各日報の「現金合計（実点 − 底銭）」の合算です。
       </p>
 
-      <!-- 単日：网管确认样式、按班次顺序 -->
       <template v-if="period === 'day'">
-        <h3 class="section-title">班次別内訳</h3>
-        <p v-if="!sortedDayRows.length" class="empty-day">该业务日尚无已批准日报。</p>
+        <h3 class="section-title">シフト別内訳</h3>
+        <p v-if="!sortedDayRows.length" class="empty-day">この業務日の日報はまだありません。</p>
         <div v-for="r in sortedDayRows" :key="r.id" class="day-shift-block">
           <h3 class="shift-title">{{ r.shiftNameSnapshot }}</h3>
           <el-descriptions border :column="1" size="small" class="day-desc">
@@ -245,10 +253,10 @@ async function downloadAggregate(format: 'xlsx' | 'pdf') {
             <el-descriptions-item label="総売上">
               {{ r.totalSalesYen }} 円
             </el-descriptions-item>
-            <el-descriptions-item label="免税カード（1〜3档 枚数）">
-              {{ r.taxFreeTier1Count }} / {{ r.taxFreeTier2Count }} / {{ r.taxFreeTier3Count }}
+            <el-descriptions-item label="10％クーポン（枚数）">
+              {{ couponCountsLine(r) }}
             </el-descriptions-item>
-            <el-descriptions-item label="免税カード額">
+            <el-descriptions-item label="10％クーポン額">
               {{ r.taxFreeCardAmountYen }} 円
             </el-descriptions-item>
             <el-descriptions-item label="Newage">{{ r.newageYen }} 円</el-descriptions-item>
@@ -268,7 +276,7 @@ async function downloadAggregate(format: 'xlsx' | 'pdf') {
             <el-descriptions-item v-if="r.deviationReason" label="偏差理由">
               {{ r.deviationReason }}
             </el-descriptions-item>
-            <el-descriptions-item label="原填报">
+            <el-descriptions-item label="提出者">
               {{ r.createdBy.username }}
             </el-descriptions-item>
           </el-descriptions>
@@ -276,7 +284,7 @@ async function downloadAggregate(format: 'xlsx' | 'pdf') {
       </template>
 
       <div ref="chartEl" style="width: 100%; height: 360px" />
-      <h3 class="section-title">班次別合算（縦表）</h3>
+      <h3 class="section-title">シフト別合算（縦表）</h3>
       <div
         v-for="b in summary.byShift"
         :key="b.shiftName"
@@ -285,7 +293,7 @@ async function downloadAggregate(format: 'xlsx' | 'pdf') {
         <el-descriptions :column="1" border size="small" :title="b.shiftName">
           <el-descriptions-item label="件数">{{ b.count }}</el-descriptions-item>
           <el-descriptions-item label="総売上">{{ b.totalSalesYen }} 円</el-descriptions-item>
-          <el-descriptions-item label="免税額">{{ b.taxFreeCardAmountYen }} 円</el-descriptions-item>
+          <el-descriptions-item label="10％クーポン額">{{ b.taxFreeCardAmountYen }} 円</el-descriptions-item>
           <el-descriptions-item label="偏差">{{ b.deviationYen }} 円</el-descriptions-item>
         </el-descriptions>
       </div>

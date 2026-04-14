@@ -4,6 +4,14 @@ export function todayTokyo(): string {
   return DateTime.now().setZone('Asia/Tokyo').toISODate()!;
 }
 
+/** 东京日历：从今天往前推若干月（用于日报列表默认区间） */
+export function isoMonthsAgoTokyo(months: number): string {
+  return DateTime.now()
+    .setZone('Asia/Tokyo')
+    .minus({ months })
+    .toISODate()!;
+}
+
 export function minutesToLabel(start: number, end: number): string {
   const sh = Math.floor(start / 60);
   const sm = start % 60;
@@ -13,7 +21,7 @@ export function minutesToLabel(start: number, end: number): string {
   return `${p(sh)}:${p(sm)}–${p(eh)}:${p(em)}`;
 }
 
-/** el-time-picker value Date -> minute of day */
+/** 将 el-time-picker 的 Date 转为当日 0 点起的分钟数 */
 export function dateToMinute(d: Date): number {
   return d.getHours() * 60 + d.getMinutes();
 }

@@ -15,9 +15,9 @@ function logout() {
   <el-container class="layout">
     <el-aside width="200px">
       <el-menu router :default-active="$route.path">
-        <el-menu-item index="/admin/daily">全部日報</el-menu-item>
+        <el-menu-item index="/admin/daily">全日報</el-menu-item>
         <el-menu-item index="/admin/settings">マスタ・設定</el-menu-item>
-        <el-menu-item index="/admin/analytics">集計・导出</el-menu-item>
+        <el-menu-item index="/admin/analytics">集計・エクスポート</el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>

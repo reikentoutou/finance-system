@@ -13,8 +13,8 @@ export function labelFromMinutes(start: number, end: number): string {
 }
 
 /**
- * 開始・終了はいずれも「その日の時刻」（0–1439）。
- * 終了 < 開始 のときは深夜跨ぎ（終了は翌日の時刻）として有効。
+ * 开始、结束均为「当日钟面」分钟数（0–1439）。
+ * 当结束 < 开始时视为跨午夜（结束在次日），仍属有效范围。
  */
 export function assertValidRange(start: number, end: number) {
   if (start < 0 || start > MAX_MINUTE || end < 0 || end > MAX_MINUTE) {

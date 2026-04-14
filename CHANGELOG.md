@@ -4,6 +4,17 @@
 
 ## [Unreleased]
 
+### 改进
+
+- **Web**：网管与管理员日报表单共用 `useReportAttachmentFiles`、`daily-report-form-sync`、`httpErrorMessage`；确认步骤抽为 `DailyReportConfirmSummary.vue`；输入主区域抽为 `DailyReportFormFields.vue`；`validateDailyReportGoToConfirm` / `validateDailyReportSubmit` 统一校验。加载/提交错误提示统一；移除调试用 `console.error`。管理员日报列表表格 `max-height` 内滚动以减轻长列表布局压力。
+- **注释**：`apps/web`、`apps/api` 源码及 `schema.prisma` 中面向开发者的注释统一为**简体中文**（界面/导出中的日文产品文案未改）。
+
+### 文档
+
+- **Cursor**：新增 `.cursor/rules/finance-agents-core.mdc`（全对话应用 AGENTS + API/Prisma 要点）、`vue-web-skills.mdc`（匹配 `apps/web/**` 时挂载 Vue skills 必读表）；AGENTS.md 已补充与上述规则的对应说明。
+- **AGENTS.md**：AI 助手与协作者约定（改动范围、Prisma、Nest/Vue/桌面端、代码一致性）；含 **`.agents/skills`（vuejs-ai/skills）** 的用途、与本文优先级、`npx skills add`、Cursor `@` 引用及 `.agents/` 是否纳入 Git。根 README 与 `docs/README` 已链到该文件。
+- **README / API README**：README「开发与构建」补充 `schema.prisma` 变更后须 `db:generate`、Prisma Client 与 TS/IDE 不同步排查、**Cursor / VS Code** 下 **Vue - Official** 及**扩展市场失败时 VSIX 手动安装**；`docs/README.md` 索引链至上述小节；API README 生产检查表（JWT、CORS、db push）等见既有说明。
+
 ### 变更
 
 - **Electron 主进程**：子进程异常退出时提示并退出；子进程环境变量改为「系统白名单 + 用户 `.env` 大写键」合并；`PORT` / `WEB_STATIC_PORT` 与健康检查、窗口 URL 对齐；端口冲突校验；首次创建 `.env` 时写入默认 `WEB_STATIC_PORT`。

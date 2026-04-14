@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '@prisma/client';
@@ -17,7 +21,7 @@ export class SetupService {
   async ensureSeedData() {
     const shiftCount = await this.prisma.shift.count();
     if (shiftCount === 0) {
-      const names = ['早班', '白1班', '白2班', '夜班'];
+      const names = ['早番', '白1番', '白2番', '夜番'];
       for (let i = 0; i < names.length; i++) {
         await this.prisma.shift.create({
           data: { name: names[i], sortOrder: i + 1, active: true },
@@ -26,10 +30,10 @@ export class SetupService {
     }
     const tierCount = await this.prisma.taxFreeCardTier.count();
     if (tierCount === 0) {
-      const tiers = [1000, 5000, 10000];
+      const tiers = [5000, 10000];
       for (let i = 0; i < tiers.length; i++) {
         await this.prisma.taxFreeCardTier.create({
-          data: { denominationYen: tiers[i], sortOrder: i + 1 },
+          data: { denominationYen: tiers[i], sortOrder: i + 1, active: true },
         });
       }
     }
@@ -57,7 +61,7 @@ export class SetupService {
       where: { id: 'default' },
     });
     if (settings?.setupCompleted) {
-      throw new BadRequestException('Setup already completed');
+      throw new ForbiddenException('Setup already completed');
     }
     const wm = await this.prisma.user.findUnique({
       where: { username: dto.webmasterUsername },

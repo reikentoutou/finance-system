@@ -24,29 +24,35 @@ function errMessage(e: unknown): string {
   if (Array.isArray(m)) return m.join(' ');
   if (typeof m === 'string') return m;
   if (err.message?.includes('Network Error')) {
-    return '无法连接 API。请先在本机运行 pnpm dev（需同时启动 API 与 Web）。';
+    return 'API に接続できません。本機で pnpm dev を実行し、API と Web の両方を起動してください。';
   }
-  return err.message || '保存失败';
+  return err.message || '保存に失敗しました';
 }
 
 async function submit() {
   if (!form.webmasterPassword || form.webmasterPassword.length < 4) {
-    ElMessage.error('网管密码至少 4 个字符');
+    ElMessage.error('網管パスワードは 4 文字以上にしてください');
     return;
   }
   if (!form.adminPassword || form.adminPassword.length < 4) {
-    ElMessage.error('管理员密码至少 4 个字符');
+    ElMessage.error('管理者パスワードは 4 文字以上にしてください');
     return;
   }
   if (form.webmasterUsername.trim() === form.adminUsername.trim()) {
-    ElMessage.error('网管与管理员用户名不能相同');
+    ElMessage.error('網管と管理者のユーザー名は同じにできません');
     return;
   }
   loading.value = true;
   try {
     await http.post('/setup/bootstrap', { ...form });
-    await setupStore.fetchStatus();
-    ElMessage.success('已保存，请登录');
+    const completed = await setupStore.fetchStatus(true);
+    if (setupStore.statusFetchFailed || completed === null) {
+      ElMessage.warning(
+        '初期化は完了した可能性がありますが、状態確認に失敗しました。ページを再読み込みしてください。',
+      );
+      return;
+    }
+    ElMessage.success('保存しました。ログインしてください');
     await router.replace({ name: 'login' });
   } catch (e: unknown) {
     ElMessage.error(errMessage(e));
@@ -60,12 +66,12 @@ async function submit() {
   <div class="wrap">
     <el-card class="card">
       <h2>初回セットアップ</h2>
-      <p class="hint">网管と管理者のログイン名・パスワードを設定してください（4文字以上）。</p>
+      <p class="hint">網管と管理者のログイン名・パスワードを設定してください（4 文字以上）。</p>
       <el-form label-width="140px" @submit.prevent="submit">
-        <el-form-item label="网管ユーザー名">
+        <el-form-item label="網管ユーザー名">
           <el-input v-model="form.webmasterUsername" autocomplete="username" />
         </el-form-item>
-        <el-form-item label="网管パスワード">
+        <el-form-item label="網管パスワード">
           <el-input
             v-model="form.webmasterPassword"
             type="password"

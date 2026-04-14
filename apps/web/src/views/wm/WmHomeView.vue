@@ -52,7 +52,7 @@ function logout() {
 <template>
   <div class="page">
     <header class="bar">
-      <h1>日報（网管）</h1>
+      <h1>日報（網管）</h1>
       <div class="right">
         <span>{{ auth.user?.username }}</span>
         <el-button link type="primary" @click="logout">ログアウト</el-button>
@@ -60,7 +60,7 @@ function logout() {
     </header>
     <div class="body">
       <div class="row">
-        <span>业务日（东京）</span>
+        <span>業務日（東京）</span>
         <el-date-picker v-model="reportDate" value-format="YYYY-MM-DD" type="date" />
       </div>
       <el-row :gutter="16" class="grid">
