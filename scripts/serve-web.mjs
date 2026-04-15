@@ -34,6 +34,15 @@ function underRoot(rootDir, pathname) {
   return candidate;
 }
 
+/** 非法 % 序列时 decodeURIComponent 会抛错，须单独处理 */
+function safeDecodeURIComponent(pathname) {
+  try {
+    return decodeURIComponent(pathname);
+  } catch {
+    return null;
+  }
+}
+
 if (!fs.existsSync(path.join(root, 'index.html'))) {
   console.error('serve-web: 未找到', path.join(root, 'index.html'));
   process.exit(1);
@@ -50,7 +59,12 @@ http
       res.writeHead(405);
       return res.end();
     }
-    const filePath = underRoot(root, decodeURIComponent(url.pathname));
+    const decodedPath = safeDecodeURIComponent(url.pathname);
+    if (decodedPath === null) {
+      res.writeHead(400);
+      return res.end();
+    }
+    const filePath = underRoot(root, decodedPath);
     if (!filePath) {
       res.writeHead(403);
       return res.end();

@@ -264,7 +264,11 @@ export class DailyReportsService {
       assertCountsOnlyActiveTiers(client, activeIds);
       nextCounts = { ...prev };
       for (const id of activeIds) {
-        nextCounts[id] = id in client ? client[id]! : (prev[id] ?? 0);
+        const fromClient = Object.prototype.hasOwnProperty.call(client, id)
+          ? client[id]
+          : undefined;
+        nextCounts[id] =
+          fromClient !== undefined ? fromClient : (prev[id] ?? 0);
       }
     } else {
       nextCounts = prev;

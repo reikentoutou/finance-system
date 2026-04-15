@@ -32,7 +32,7 @@
   - 修改 `schema.prisma` 后必须 **`pnpm run db:generate`**，并对目标库执行 **`pnpm run db:push`** 或 migrate。
   - `pnpm install` 会触发 API 包 `postinstall` 中的 `prisma generate`；若 IDE 仍报模型缺字段，重启 TS Server 或重载窗口。
 - **配置与安全**：生产相关约定见根 `README.md`「生产部署检查」（`JWT_SECRET`、`CORS_ORIGINS`、`/setup` 等）。
-- **构建验证**：改动后至少在 `apps/api` 下执行 `pnpm exec tsc --noEmit`；能跑则再 `pnpm run build:api`。
+- **TypeScript**：`apps/api/tsconfig.json` 已启用 **`strict: true`**（与 `apps/web` 一致）；改动后至少在 `apps/api` 下执行 `pnpm exec tsc --noEmit`，能跑则再 `pnpm run build:api`。
 
 ## 4. Web（`apps/web`）
 

@@ -103,7 +103,7 @@ router.beforeEach(async (to) => {
   const publicNames = ['login', 'setup', 'service-unavailable'];
   if (publicNames.includes(String(to.name))) return true;
   if (!auth.token) return { name: 'login', query: { redirect: to.fullPath } };
-  const need = to.meta.role as string | undefined;
+  const need = to.meta.role;
   if (need && auth.user?.role !== need) {
     return auth.user?.role === 'ADMIN' ? { name: 'admin' } : { name: 'wm' };
   }

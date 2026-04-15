@@ -22,6 +22,7 @@ pnpm --filter @finance/api run start:prod
 
 ### Prisma 与类型检查
 
+- 本包 **`tsconfig.json` 已启用 `strict: true`**（与 `apps/web` 一致）；提交前建议在 `apps/api` 下执行 **`pnpm exec tsc --noEmit`**。
 - 修改 `prisma/schema.prisma` 后：除同步数据库外，务必 **`pnpm run db:generate`**（本包 `postinstall` 已含 `prisma generate`，新克隆请先 `pnpm install`）。
 - 若命令行 `tsc` / `nest build` 正常但编辑器仍报 Prisma 模型缺字段，多为语言服务缓存；可 **Restart TS Server** 或重载窗口。
 

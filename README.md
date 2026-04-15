@@ -42,6 +42,8 @@ pnpm run db:generate
 
 **`schema.prisma` 变更后**须执行 `pnpm run db:generate`（根目录 `pnpm install` 会触发 `apps/api` 的 `postinstall`，也会生成 Client）。若 `@prisma/client` 与当前 schema 不同步，可能出现日报等代码里「缺少字段」（例如 `TaxFreeCardTier.active`、`DailyReport.taxFreeCouponCounts`）的 TypeScript 误报；生成后若 IDE 仍红线，可执行 **TypeScript: Restart TS Server** 或重载窗口。
 
+**API 包 TypeScript**：`apps/api/tsconfig.json` 已启用 **`strict: true`**（与 `apps/web` 一致）；本地校验与 Prisma 流程见 **[apps/api/README.md](./apps/api/README.md)**。
+
 **Cursor / VS Code（可选）**：编辑 `apps/web` 建议安装扩展 **Vue - Official**（原 Volar），以获得 `.vue` 语法高亮与类型提示。若扩展市场在线安装失败（日志中常见 `marketplace.cursorapi.com` 或 `net::ERR_FAILED`），可在浏览器下载对应 **`.vsix`**，再在编辑器中执行 **Extensions: Install from VSIX…** 手动安装。
 
 ## Windows 桌面安装包（自包含，客户双击 exe）

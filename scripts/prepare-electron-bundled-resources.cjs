@@ -54,6 +54,11 @@ function download(url, dest, redirectDepth = 0) {
         }
         if (res.statusCode !== 200) {
           file.close();
+          try {
+            fs.unlinkSync(dest);
+          } catch (_) {
+            /* 忽略部分写入残留 */
+          }
           reject(new Error(`GET ${url} -> ${res.statusCode}`));
           return;
         }
