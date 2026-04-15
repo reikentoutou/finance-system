@@ -51,7 +51,7 @@ async function submit() {
 
 <template>
   <div class="wrap">
-    <div class="panel">
+    <div class="panel fs-anim-fade-lift">
       <p class="eyebrow">財務日報</p>
       <h1 class="title">ログイン</h1>
       <p class="lede">業務用アカウントでサインインしてください。</p>
@@ -127,6 +127,21 @@ async function submit() {
   box-shadow: var(--fs-shadow-soft);
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .card {
+    transition:
+      border-color 0.22s var(--fs-ease-out, cubic-bezier(0.25, 1, 0.5, 1)),
+      box-shadow 0.28s var(--fs-ease-out, cubic-bezier(0.25, 1, 0.5, 1));
+  }
+
+  .card:hover {
+    border-color: var(--fs-border-strong);
+    box-shadow:
+      0 1px 2px rgba(28, 26, 22, 0.06),
+      0 16px 40px rgba(28, 26, 22, 0.09);
+  }
+}
+
 .card :deep(.el-card__body) {
   padding: 22px 22px 20px;
 }
@@ -141,5 +156,15 @@ async function submit() {
   margin-top: 4px;
   height: 42px;
   font-weight: 600;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .submit:not(:disabled):active {
+    transform: translateY(1px);
+  }
+
+  .submit {
+    transition: transform 0.12s var(--fs-ease-out, cubic-bezier(0.25, 1, 0.5, 1));
+  }
 }
 </style>

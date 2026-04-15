@@ -113,7 +113,7 @@ function formatYen(n: number): string {
 
         <p class="panel-hint">カードを押すと、そのシフトの日報入力・編集へ移動します。</p>
 
-        <ul class="shift-grid">
+        <ul class="shift-grid fs-stagger-children">
           <li v-for="sh in shiftsSorted" :key="sh.id" class="shift-li">
             <button
               type="button"

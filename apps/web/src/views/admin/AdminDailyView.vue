@@ -114,7 +114,7 @@ function edit(id: string) {
 
 <template>
   <div v-loading="loading" class="page">
-    <section class="panel" aria-labelledby="admin-daily-heading">
+    <section class="panel fs-anim-fade-lift" aria-labelledby="admin-daily-heading">
       <header class="panel-head">
         <div class="panel-intro">
           <h2 id="admin-daily-heading" class="panel-title">全日報</h2>
@@ -132,11 +132,14 @@ function edit(id: string) {
       </header>
 
       <div class="panel-body">
-        <el-empty
-          v-if="!loading && totalReports === 0"
-          description="該当期間に日報はありません"
-          :image-size="72"
-        />
+        <el-empty v-if="!loading && totalReports === 0" :image-size="80">
+          <template #description>
+            <div class="empty-desc">
+              <p class="empty-title">この期間にはまだ日報がありません</p>
+              <p class="empty-hint">網管が提出すると、ここに日付ごとに並びます。</p>
+            </div>
+          </template>
+        </el-empty>
         <el-collapse v-else v-model="expanded" class="list-collapse">
           <el-collapse-item v-for="[date, list] in byDate" :key="date" :name="date">
             <template #title>
@@ -341,5 +344,25 @@ function edit(id: string) {
 .dlg-field {
   width: 100%;
   max-width: 100%;
+}
+
+.empty-desc {
+  text-align: center;
+  max-width: 32ch;
+  margin: 0 auto;
+}
+
+.empty-title {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--fs-ink);
+}
+
+.empty-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--fs-muted);
 }
 </style>

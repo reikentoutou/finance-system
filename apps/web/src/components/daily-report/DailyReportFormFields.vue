@@ -241,6 +241,21 @@ const wmTimeCollapse = ref<string[]>([]);
   box-shadow: var(--fs-shadow-soft, none);
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .block {
+    transition:
+      border-color 0.22s var(--fs-ease-out, cubic-bezier(0.25, 1, 0.5, 1)),
+      box-shadow 0.26s var(--fs-ease-out, cubic-bezier(0.25, 1, 0.5, 1));
+  }
+
+  .block:hover {
+    border-color: var(--fs-border-strong, var(--el-border-color));
+    box-shadow:
+      0 1px 2px rgba(28, 26, 22, 0.06),
+      0 12px 32px rgba(28, 26, 22, 0.07);
+  }
+}
+
 .block-title {
   margin: 0 0 14px;
   font-size: 0.82rem;
@@ -431,6 +446,16 @@ const wmTimeCollapse = ref<string[]>([]);
   width: 100%;
   max-width: 360px;
   font-weight: 700;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .confirm-btn:not(:disabled):active {
+    transform: translateY(1px);
+  }
+
+  .confirm-btn {
+    transition: transform 0.12s var(--fs-ease-out, cubic-bezier(0.25, 1, 0.5, 1));
+  }
 }
 
 .item-plain :deep(.el-input-number) {

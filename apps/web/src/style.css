@@ -21,6 +21,9 @@
   --el-color-primary-rgb: 22, 95, 88;
   --el-border-radius-base: var(--fs-radius-sm);
   --el-border-radius-small: 6px;
+
+  /* Delight：易出易收的过渡曲线（業務 UI は短く） */
+  --fs-ease-out: cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 *,
@@ -42,6 +45,65 @@ body {
   color: var(--fs-ink);
   background: var(--fs-page);
   -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(22, 95, 88, 0.2);
+  color: var(--fs-ink);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes fs-fade-lift {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .fs-anim-fade-lift {
+    animation: fs-fade-lift 0.48s var(--fs-ease-out) both;
+  }
+
+  .fs-stagger-children > * {
+    animation: fs-fade-lift 0.42s var(--fs-ease-out) both;
+  }
+
+  .fs-stagger-children > *:nth-child(1) {
+    animation-delay: 0.03s;
+  }
+  .fs-stagger-children > *:nth-child(2) {
+    animation-delay: 0.07s;
+  }
+  .fs-stagger-children > *:nth-child(3) {
+    animation-delay: 0.11s;
+  }
+  .fs-stagger-children > *:nth-child(4) {
+    animation-delay: 0.15s;
+  }
+  .fs-stagger-children > *:nth-child(5) {
+    animation-delay: 0.19s;
+  }
+  .fs-stagger-children > *:nth-child(6) {
+    animation-delay: 0.23s;
+  }
+  .fs-stagger-children > *:nth-child(7) {
+    animation-delay: 0.27s;
+  }
+  .fs-stagger-children > *:nth-child(8) {
+    animation-delay: 0.31s;
+  }
+
+  .el-button--primary:not(.is-loading):not(:disabled) {
+    transition: transform 0.14s var(--fs-ease-out);
+  }
+
+  .el-button--primary:not(.is-loading):not(:disabled):active {
+    transform: translateY(1px);
+  }
 }
 
 /* 数字列に Lexend を寄せる（日報・集計で読みやすく） */

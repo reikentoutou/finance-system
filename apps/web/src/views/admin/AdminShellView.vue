@@ -105,6 +105,8 @@ function logout() {
   margin: 2px 10px;
   border-radius: var(--fs-radius-sm);
   font-size: 0.92rem;
+  transition: background-color 0.2s var(--fs-ease-out, ease),
+    color 0.2s var(--fs-ease-out, ease);
 }
 
 .nav :deep(.el-menu-item.is-active) {

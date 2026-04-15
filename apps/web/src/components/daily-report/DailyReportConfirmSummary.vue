@@ -34,7 +34,7 @@ function couponLine(): string {
 </script>
 
 <template>
-  <div class="confirm-summary">
+  <div class="confirm-summary fs-anim-fade-lift">
     <header class="intro">
       <p class="eyebrow">提出前の確認</p>
       <h2 class="title">入力内容の確認</h2>
