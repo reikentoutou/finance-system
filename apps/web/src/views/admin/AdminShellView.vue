@@ -35,6 +35,9 @@ function logout() {
         <el-menu-item index="/admin/analytics">
           <span class="nav-label">集計・エクスポート</span>
         </el-menu-item>
+        <el-menu-item index="/admin/backup">
+          <span class="nav-label">バックアップ・リストア</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     <el-container class="main-wrap">

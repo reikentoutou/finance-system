@@ -8,7 +8,7 @@
 |------|--------|------|
 | `apps/api` | NestJS 10、Prisma、SQLite、JWT | 后端 API；`prisma/schema.prisma` 在此包内 |
 | `apps/web` | Vue 3、Vite、Element Plus、Pinia、vue-router | 管理端与网管填报 |
-| `apps/desktop` | Electron（Windows x64 交付） | 打包内含 API + 静态站，**运行时依赖客户机 Node**（或 `FINANCE_NODE_EXE`）；打包见根 `README.md`；**本机 Windows + GitHub CLI 一键上传 Release** 见 `docs/cursor-windows-release-agent.md`（`pnpm run release:desktop:win:gh`） |
+| `apps/desktop` | Electron（Windows x64 **备选**交付） | **主交付**为前台机**源码 + 终端**（根 `README.md`）；桌面包仅在需要 `.exe` 时使用，**运行时依赖客户机 Node**（或 `FINANCE_NODE_EXE`）；发版见根 `README.md`、`docs/cursor-windows-release-agent.md` |
 | `docs/` | Markdown | 业务与实施文档索引 |
 | `.agents/skills/` | `skills` CLI 安装的 Vue 生态技能 | 各子目录含 `SKILL.md`；见下文「Vue 技能包」 |
 
@@ -72,6 +72,7 @@
 
 ## 6. 桌面端（`apps/desktop`）
 
+- **主交付**不以本包为必经路径：前台机按根 `README.md` 用**源码 + 终端 + 浏览器**即可；本包仅在需要 **Windows `.exe`** 时参与构建与发版。
 - 勿在 macOS 上假设 Windows 打包产物可交付；完整桌面包须在 **Windows** 上 prepare（见根 `README.md`）。
 - 勿把大体积 `resources-bundled` 实文件提交进 Git（仓库已有脚本与 `.gitignore` 约定）。
 

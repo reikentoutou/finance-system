@@ -2,6 +2,8 @@
 
 财务系统后端：JWT 认证、Prisma + SQLite、日报与附件、集计、导出（管理员）等。
 
+**前台机交付（与根 README 一致）**：与 Web 同源获取源码与依赖；在仓库根 **`pnpm run dev:api`** 或 **`pnpm run dev`** 启动 API；生产常驻见根 README「`build` + `start`」说明。
+
 ## 开发
 
 在**仓库根目录**：

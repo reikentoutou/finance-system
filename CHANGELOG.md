@@ -13,6 +13,7 @@
 
 ### 文档
 
+- **交付物与文档对齐**：根 **README**、**RELEASING**、**docs/README**、**docs/实施计划-财务统计系统.md**、**apps/web|api|desktop/README**、**docs/cursor-windows-release-agent.md**、**docs/data-backup-restore.md**、**AGENTS.md** 等已统一表述——**主交付**为前台机 **源码 + `pnpm install` + 终端启动 + 浏览器**；**Windows Electron 安装包**为**备选**；GitHub Release 的 **Source code** 为源码获取方式之一（勿与 `.exe` 混淆）。
 - **Cursor**：新增 `.cursor/rules/finance-agents-core.mdc`（全对话应用 AGENTS + API/Prisma 要点）、`vue-web-skills.mdc`（匹配 `apps/web/**` 时挂载 Vue skills 必读表）；AGENTS.md 已补充与上述规则的对应说明。
 - **AGENTS.md**：AI 助手与协作者约定（改动范围、Prisma、Nest/Vue/桌面端、代码一致性）；含 **`.agents/skills`（vuejs-ai/skills）** 的用途、与本文优先级、`npx skills add`、Cursor `@` 引用及 `.agents/` 是否纳入 Git；**§3 API** 已写明 **`strict: true`** 与 `tsc` 验证。根 README 与 `docs/README` 已链到该文件。
 - **README / API README**：README「开发与构建」补充 `schema.prisma` 变更后须 `db:generate`、Prisma Client 与 TS/IDE 不同步排查、**Cursor / VS Code** 下 **Vue - Official** 及**扩展市场失败时 VSIX 手动安装**；`docs/README.md` 索引链至上述小节；API README 生产检查表（JWT、CORS、db push）等见既有说明。
@@ -24,9 +25,9 @@
 
 ### 新增
 
-- **Windows 桌面包自包含**：内置 Node、Nest API、Vue 静态页；客户 **双击 exe** 即可（无需系统 Node）。配置与数据默认 `%AppData%\FinanceSystem`。
+- **Windows 桌面包（可选）**：安装包内含 Nest API、Vue 静态页；**客户机须安装 Node**（或 `FINANCE_NODE_EXE`）。配置与数据默认 `%AppData%\FinanceSystem`。与**主交付**（源码 + 终端 + 浏览器）并行由实施方选择。
 - `prepare-electron-bundled-resources`：在 **Windows** 上生成 `resources-bundled` 并打入 NSIS / 便携 exe（`pnpm run pack:desktop:win` 等）。
-- `pnpm run pack:bundle:win`（仅 Windows）：zip 内含自包含便携 exe + 说明。
+- `pnpm run pack:bundle:win`（仅 Windows）：zip 内含便携 exe + 说明（客户须已装 Node）。
 - Prisma `binaryTargets` 含 `windows`；可交付桌面包仍须在 **Windows** 上 prepare（bcrypt 等）。
 - Electron **portable** 与 NSIS 文件名区分（`*-Windows-Portable-*.exe`）。
 

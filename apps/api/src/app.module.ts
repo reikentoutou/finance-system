@@ -10,6 +10,7 @@ import { MetaModule } from './meta/meta.module';
 import { DailyReportsModule } from './daily-reports/daily-reports.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ExportModule } from './export/export.module';
+import { MaintenanceModule } from './maintenance/maintenance.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -25,6 +26,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     AnalyticsModule,
     DailyReportsModule,
     ExportModule,
+    MaintenanceModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

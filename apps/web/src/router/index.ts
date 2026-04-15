@@ -71,6 +71,11 @@ const router = createRouter({
           name: 'admin-analytics',
           component: () => import('@/views/admin/AnalyticsView.vue'),
         },
+        {
+          path: 'backup',
+          name: 'admin-backup',
+          component: () => import('@/views/admin/AdminBackupView.vue'),
+        },
       ],
     },
     { path: '/', redirect: '/login' },

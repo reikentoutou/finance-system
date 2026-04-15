@@ -1,6 +1,12 @@
 # 发布说明（Releases）
 
-## 桌面端（Windows NSIS）
+## 交付方式（与源码为主的前台机）
+
+**当前默认交付**：前台机获取本仓库**源码**（`git clone`、内网 zip、或 Release 页上的 **Source code (zip/tar.gz)** 等——均为**源码快照**，不是安装程序），在终端执行 **`pnpm install`**、配置 **`apps/api/.env`**、**`pnpm run db:push`** 后，用 **`pnpm run dev`**（或先 **`pnpm run build`** 再按根目录 README 启动 API/Web）运行，**浏览器访问前端**。流程见根 **[README.md](./README.md)**「前台机：源码安装与运行」。
+
+下文 **「桌面端（Windows NSIS）」** 为**可选**：仅当仍要向客户提供 **`.exe`** 时启用；否则可忽略该工作流，以源码与 **[CHANGELOG.md](./CHANGELOG.md)** 为主即可。
+
+## 桌面端（Windows NSIS，可选）
 
 Release 由工作流 **[`.github/workflows/release-desktop-win.yml`](.github/workflows/release-desktop-win.yml)** 在推送 **以 `v` 开头的标签** 时自动执行（例如 `v0.0.1`）。
 

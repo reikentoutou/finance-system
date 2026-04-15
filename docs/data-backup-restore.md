@@ -1,0 +1,35 @@
+# 数据备份与 ZIP 恢复（管理员）
+
+与当前**主交付**（前台机 **API + 浏览器**，见根 **[README.md](../README.md)**）一致：无论是否使用 Electron 安装包，管理员都可在 Web 内导出/导入数据 ZIP。
+
+## 功能说明
+
+- **导出**：将当前 **SQLite 主库文件**（`PRAGMA database_list` 解析路径）与 **`UPLOAD_DIR`** 下所有附件打成 **ZIP** 下载。
+- **导入**：上传由本系统导出的 ZIP，校验 `manifest.json` 后替换数据库文件；若 ZIP 内包含 **`uploads/`** 目录，则**清空**当前上传目录并以 ZIP 内容覆盖。
+
+格式标识：`finance-system-backup-v1`（ZIP 内 `manifest.json` 的 `format` 字段）。
+
+## 使用方式
+
+1. 使用 **管理员**账号登录 Web。
+2. 侧栏进入 **「バックアップ・リストア」**（路由 `/admin/backup`）。
+3. **エクスポート**：点击下载 ZIP，妥善保管。
+4. **リストア**：选择 ZIP，确认对话框后执行。完成后请 **刷新浏览器**，必要时重新登录。
+
+## API（自动化或脚本）
+
+- `GET /maintenance/backup/export` — 需管理员 JWT，`Content-Type: application/zip`。
+- `POST /maintenance/backup/import` — 需管理员 JWT，`multipart/form-data` 字段名 **`file`**（ZIP），最大约 **220MB**。
+
+## 注意事项
+
+1. **导入会短暂断开 Prisma**：导入过程中请勿多人并发操作；建议在维护窗口执行。服务端对导入/导出加了互斥，避免并行。
+2. **ZIP 安全**：导入时逐条校验 ZIP 内路径，禁止 `..` 与越出解压目录的条目（ZIP Slip）；非本工具生成的恶意包会被拒绝。
+3. **仅支持本系统导出的 ZIP**：其他工具备份的 SQLite 文件需自行替换路径，勿直接上传任意 ZIP。
+4. **版本与 schema**：若 ZIP 来自**旧版本 schema**，导入后可能无法启动 API；请先升级应用再导入，或使用导出时的同版本应用恢复。
+5. **自动备份文件**：导入前会将当前数据库复制为同目录下的 **`*.pre-restore-<时间戳>`**；导入失败且无法启动时，可尝试手动将该文件拷回为当前库文件名（需在应用停止时操作）。
+6. **无 `uploads/` 的 ZIP**：不修改当前上传目录（仅替换数据库）。
+
+## 与 Electron 安装包的关系
+
+前台机若使用 **「终端 + 浏览器」** 或 **「Node 起 API + 静态站」**，同样可使用上述 Web 界面做备份/恢复；**不依赖** Electron。

@@ -1,5 +1,7 @@
 # Cursor / Composer：在新 Windows 电脑上打包并发布 GitHub Release
 
+**与主交付的关系**：计划中的**主交付**是前台机 **源码 + `pnpm install` + 终端启动 + 浏览器**（见根 **[README.md](../README.md)**）。本文仅在团队仍要发布 **Windows Electron 安装包** 并上传到 GitHub Release 时使用。
+
 本文供 **人类** 与 **AI 编码助手**（含 Cursor Composer）按同一套步骤执行，避免漏步骤。
 
 ## 先决条件（新电脑一次性准备）

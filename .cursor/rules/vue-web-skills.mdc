@@ -10,6 +10,7 @@ alwaysApply: false
 
 1. 根目录 **AGENTS.md** §4、§5 与本仓库现有代码。
 2. 下列 **`.agents/skills`** 中的 `SKILL.md`（与 AGENTS 冲突时以 AGENTS / 本仓库代码为准）。
+3. 前台部署与交付形态见根 **README.md**（**主交付**：源码 + `pnpm` + 终端 + 浏览器）。
 
 ## 实现或重构前应阅读/对齐的文档
 
