@@ -383,7 +383,12 @@ async function submit() {
       </div>
     </template>
 
-    <el-form v-if="!loading && step === 'form'" label-width="200px" class="form">
+    <el-form
+      v-if="!loading && step === 'form'"
+      label-position="top"
+      require-asterisk-position="right"
+      class="form"
+    >
       <DailyReportFormFields
         :form="form"
         :persons="persons"
@@ -418,9 +423,6 @@ async function submit() {
   align-items: center;
   gap: 16px;
   margin-bottom: 16px;
-}
-.form :deep(.el-input-number) {
-  margin-right: 8px;
 }
 .confirm-actions {
   display: flex;
