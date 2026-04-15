@@ -30,6 +30,21 @@ const byDate = computed(() => {
   return [...m.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1));
 });
 
+const totalReports = computed(() => rows.value.length);
+const totalDays = computed(() => byDate.value.length);
+
+const totalSalesAll = computed(() =>
+  rows.value.reduce((s, r) => s + r.totalSalesYen, 0),
+);
+
+function daySalesYen(list: Row[]): number {
+  return list.reduce((s, r) => s + r.totalSalesYen, 0);
+}
+
+function formatYen(n: number): string {
+  return `${n.toLocaleString('ja-JP')} 円`;
+}
+
 async function load() {
   loading.value = true;
   try {
@@ -99,44 +114,74 @@ function edit(id: string) {
 
 <template>
   <div v-loading="loading" class="page">
-    <div class="toolbar">
-      <div class="toolbar-text">
-        <h2 class="page-title">全日報</h2>
-        <p class="page-hint">業務日ごとに折りたたみ表示されます。</p>
-      </div>
-      <el-button type="primary" @click="openNew">空シフトを補録</el-button>
-    </div>
-    <el-collapse v-model="expanded">
-      <el-collapse-item v-for="[date, list] in byDate" :key="date" :name="date">
-        <template #title>
-          <strong>{{ date }}</strong>
-          <span class="cnt">（{{ list.length }} 件）</span>
-        </template>
-        <el-table :data="list" size="small" max-height="520">
-          <el-table-column prop="shiftNameSnapshot" label="シフト" width="100" />
-          <el-table-column prop="totalSalesYen" label="総売上" />
-          <el-table-column prop="createdBy.username" label="提出者" />
-          <el-table-column label="" width="120">
-            <template #default="{ row }">
-              <el-button type="primary" link @click="edit(row.id)">編集</el-button>
+    <section class="panel" aria-labelledby="admin-daily-heading">
+      <header class="panel-head">
+        <div class="panel-intro">
+          <h2 id="admin-daily-heading" class="panel-title">全日報</h2>
+          <p class="panel-meta">
+            <span class="meta-strong">{{ totalDays }}</span> 業務日 ·
+            <span class="meta-strong">{{ totalReports }}</span> 件
+            <template v-if="totalReports > 0">
+              <span class="meta-dot" aria-hidden="true">·</span>
+              表示期間の売上計 <span class="meta-strong">{{ formatYen(totalSalesAll) }}</span>
             </template>
-          </el-table-column>
-        </el-table>
-      </el-collapse-item>
-    </el-collapse>
+          </p>
+          <p class="panel-hint">業務日を開くとシフト別の一覧が表示されます。</p>
+        </div>
+        <el-button type="primary" class="head-action" @click="openNew">空シフトを補録</el-button>
+      </header>
 
-    <el-dialog v-model="dlg" title="補録（新規行）" width="480px">
-      <el-form label-width="120px">
-        <el-form-item label="業務日">
-          <el-date-picker v-model="newForm.reportDate" value-format="YYYY-MM-DD" type="date" />
+      <div class="panel-body">
+        <el-empty
+          v-if="!loading && totalReports === 0"
+          description="該当期間に日報はありません"
+          :image-size="72"
+        />
+        <el-collapse v-else v-model="expanded" class="list-collapse">
+          <el-collapse-item v-for="[date, list] in byDate" :key="date" :name="date">
+            <template #title>
+              <div class="day-title">
+                <span class="day-date">{{ date }}</span>
+                <el-tag size="small" effect="plain" type="info">{{ list.length }} 件</el-tag>
+                <span class="day-sum">{{ formatYen(daySalesYen(list)) }}</span>
+              </div>
+            </template>
+            <el-table :data="list" size="small" stripe border class="day-table" max-height="320">
+              <el-table-column prop="shiftNameSnapshot" label="シフト" width="108" />
+              <el-table-column label="総売上" min-width="120">
+                <template #default="{ row }">
+                  {{ formatYen(row.totalSalesYen) }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="createdBy.username" label="提出者" min-width="100" />
+              <el-table-column label="" width="100" align="right" fixed="right">
+                <template #default="{ row }">
+                  <el-button type="primary" link @click.stop="edit(row.id)">編集</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-collapse-item>
+        </el-collapse>
+      </div>
+    </section>
+
+    <el-dialog v-model="dlg" title="補録（新規行）" width="480px" destroy-on-close>
+      <el-form label-position="top" require-asterisk-position="right">
+        <el-form-item label="業務日" required>
+          <el-date-picker
+            v-model="newForm.reportDate"
+            value-format="YYYY-MM-DD"
+            type="date"
+            class="dlg-field"
+          />
         </el-form-item>
-        <el-form-item label="シフト">
-          <el-select v-model="newForm.shiftId">
+        <el-form-item label="シフト" required>
+          <el-select v-model="newForm.shiftId" class="dlg-field">
             <el-option v-for="s in shifts" :key="s.id" :label="s.name" :value="s.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="提出元（網管）">
-          <el-select v-model="newForm.createdByUserId">
+        <el-form-item label="提出元（網管）" required>
+          <el-select v-model="newForm.createdByUserId" class="dlg-field">
             <el-option v-for="w in webmasters" :key="w.id" :label="w.username" :value="w.id" />
           </el-select>
         </el-form-item>
@@ -151,60 +196,158 @@ function edit(id: string) {
 
 <style scoped>
 .page {
-  padding-bottom: 8px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
-.toolbar {
+
+.panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: min(520px, calc(100vh - 132px));
+  padding: 18px 20px 16px;
+  border: 1px solid var(--fs-border);
+  border-radius: var(--fs-radius-md);
+  background: var(--fs-surface-elevated);
+  box-shadow: var(--fs-shadow-soft);
+}
+
+.panel-head {
+  flex-shrink: 0;
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 18px;
-  padding-bottom: 16px;
+  gap: 14px 20px;
+  padding-bottom: 14px;
+  margin-bottom: 4px;
   border-bottom: 1px solid var(--fs-border);
 }
-.toolbar-text {
+
+.panel-intro {
   min-width: 0;
 }
-.page-title {
-  margin: 0 0 4px;
-  font-size: 1.2rem;
+
+.panel-title {
+  margin: 0 0 6px;
+  font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   color: var(--fs-ink);
 }
-.page-hint {
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--fs-muted);
+
+.panel-meta {
+  margin: 0 0 6px;
+  font-size: 0.88rem;
   line-height: 1.45;
-  max-width: 48ch;
-}
-.cnt {
   color: var(--fs-muted);
-  font-weight: 500;
-  margin-left: 8px;
 }
 
-.page :deep(.el-collapse) {
-  border-color: var(--fs-border);
+.meta-strong {
+  font-weight: 700;
+  color: var(--fs-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.meta-dot {
+  margin: 0 0.35em;
+  color: var(--fs-faint);
+}
+
+.panel-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--fs-faint);
+  line-height: 1.4;
+  max-width: 56ch;
+}
+
+.head-action {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+.panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-top: 10px;
+}
+
+.list-collapse {
+  border: none;
+  --el-collapse-header-height: 48px;
+}
+
+.list-collapse :deep(.el-collapse-item) {
+  margin-bottom: 8px;
+  border: 1px solid var(--fs-border);
   border-radius: var(--fs-radius-sm);
   overflow: hidden;
-  background: var(--fs-surface-elevated);
-}
-
-.page :deep(.el-collapse-item__header) {
-  font-size: 0.95rem;
-  padding: 12px 16px;
   background: var(--fs-surface);
 }
 
-.page :deep(.el-collapse-item__wrap) {
-  border-color: var(--fs-border);
+.list-collapse :deep(.el-collapse-item__header) {
+  padding: 0 14px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  background: var(--fs-surface);
+  border: none;
 }
 
-.page :deep(.el-table) {
-  --el-table-border-color: var(--fs-border);
-  --el-table-header-bg-color: var(--fs-surface);
+.list-collapse :deep(.el-collapse-item__wrap) {
+  border: none;
+  background: var(--fs-surface-elevated);
+}
+
+.list-collapse :deep(.el-collapse-item__content) {
+  padding: 0 0 10px;
+}
+
+.list-collapse :deep(.el-collapse-item__arrow) {
+  margin: 0 0 0 10px;
+}
+
+.day-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  width: 100%;
+  padding-right: 4px;
+}
+
+.day-date {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--fs-ink);
+  letter-spacing: 0.02em;
+}
+
+.day-sum {
+  margin-left: auto;
+  font-size: 0.88rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--fs-muted);
+}
+
+.day-table {
+  margin: 0 12px;
+  border-radius: var(--fs-radius-sm);
+  overflow: hidden;
+}
+
+.day-table :deep(.el-table__header th) {
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.dlg-field {
+  width: 100%;
+  max-width: 100%;
 }
 </style>

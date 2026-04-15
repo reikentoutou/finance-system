@@ -57,6 +57,7 @@ function logout() {
 <style scoped>
 .layout {
   min-height: 100vh;
+  height: 100vh;
   background: var(--fs-page);
 }
 
@@ -120,10 +121,16 @@ function logout() {
 }
 
 .main-wrap {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   background: var(--fs-page);
 }
 
 .head {
+  flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -161,11 +168,21 @@ function logout() {
 
 .main {
   --el-main-padding: 0;
-  padding: 22px 26px 32px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 22px 22px;
+  overflow: hidden;
 }
 
 .main-inner {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   max-width: 1200px;
+  width: 100%;
   margin: 0 auto;
 }
 </style>
