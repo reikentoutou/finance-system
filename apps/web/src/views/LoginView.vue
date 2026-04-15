@@ -79,7 +79,7 @@ async function submit() {
 
 <style scoped>
 .wrap {
-  min-height: 100vh;
+  min-height: var(--fs-vh-100);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -133,7 +133,9 @@ async function submit() {
       border-color 0.22s var(--fs-ease-out, cubic-bezier(0.25, 1, 0.5, 1)),
       box-shadow 0.28s var(--fs-ease-out, cubic-bezier(0.25, 1, 0.5, 1));
   }
+}
 
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
   .card:hover {
     border-color: var(--fs-border-strong);
     box-shadow:

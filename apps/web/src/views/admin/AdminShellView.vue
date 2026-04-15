@@ -56,8 +56,8 @@ function logout() {
 
 <style scoped>
 .layout {
-  min-height: 100vh;
-  height: 100vh;
+  min-height: var(--fs-vh-100);
+  height: var(--fs-vh-100);
   background: var(--fs-page);
 }
 

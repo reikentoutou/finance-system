@@ -247,7 +247,10 @@ const wmTimeCollapse = ref<string[]>([]);
       border-color 0.22s var(--fs-ease-out, cubic-bezier(0.25, 1, 0.5, 1)),
       box-shadow 0.26s var(--fs-ease-out, cubic-bezier(0.25, 1, 0.5, 1));
   }
+}
 
+/* 触屏では hover を当てにしない（impeccable responsive-design） */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
   .block:hover {
     border-color: var(--fs-border-strong, var(--el-border-color));
     box-shadow:

@@ -101,7 +101,7 @@ async function submit() {
 
 <style scoped>
 .wrap {
-  min-height: 100vh;
+  min-height: var(--fs-vh-100);
   display: flex;
   align-items: center;
   justify-content: center;

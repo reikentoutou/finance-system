@@ -147,7 +147,7 @@ function formatYen(n: number): string {
 
 <style scoped>
 .page {
-  min-height: 100vh;
+  min-height: var(--fs-vh-100);
   display: flex;
   flex-direction: column;
   background: var(--fs-page);
@@ -201,7 +201,7 @@ function formatYen(n: number): string {
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: min(560px, calc(100vh - 96px));
+  min-height: min(560px, calc(var(--fs-vh-100) - 96px));
   padding: 20px 22px 22px;
   border: 1px solid var(--fs-border);
   border-radius: var(--fs-radius-md);
@@ -309,10 +309,16 @@ function formatYen(n: number): string {
     transform 0.16s ease;
 }
 
-.shift-card:hover {
-  border-color: var(--fs-border-strong);
-  box-shadow: var(--fs-shadow-soft);
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .shift-card:hover {
+    border-color: var(--fs-border-strong);
+    box-shadow: var(--fs-shadow-soft);
+    transform: translateY(-1px);
+  }
+}
+
+.shift-card:active {
+  transform: translateY(1px);
 }
 
 .shift-card:focus-visible {
