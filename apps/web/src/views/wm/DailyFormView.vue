@@ -378,8 +378,9 @@ async function submit() {
         :deviation-reason="form.deviationReason"
       />
       <div class="confirm-actions">
-        <el-button @click="backToForm">入力に戻る</el-button>
-        <el-button type="primary" :loading="saving" @click="submit">提出する</el-button>
+        <el-button type="primary" size="large" class="submit-btn" :loading="saving" @click="submit">
+          提出する
+        </el-button>
       </div>
     </template>
 
@@ -425,9 +426,13 @@ async function submit() {
   margin-bottom: 16px;
 }
 .confirm-actions {
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  flex-wrap: wrap;
+  margin-top: 20px;
+  padding-top: 8px;
+}
+
+.submit-btn {
+  width: 100%;
+  max-width: 360px;
+  font-weight: 700;
 }
 </style>
