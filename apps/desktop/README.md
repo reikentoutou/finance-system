@@ -1,7 +1,7 @@
 # @finance/desktop（Electron，Windows x64）
 
 - **开发**：未打包时仅作浏览器壳，默认打开 `http://127.0.0.1:5173`（需自行起 API + Vite），或用 **`FINANCE_WEB_URL`** / **`FINANCE_USER_DATA_DIR`**。
-- **生产安装包**：已 **内嵌 Node + API + Vue 静态资源**；客户 **双击 exe** 即可（无需系统级 Node）。退出应用会结束本机 API 与静态页进程。
+- **生产安装包**：**内嵌 API + Vue 静态资源**，运行时依赖系统 **Node.js**（PATH 中的 `node` 或 **`FINANCE_NODE_EXE`**）；客户 **双击 exe** 即可。退出应用会结束本机 API 与静态页进程。
 
 ## 打包（须在 Windows 上打可交付安装包）
 

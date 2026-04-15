@@ -7,7 +7,7 @@
 1. **Git**、**Node.js 20+**（推荐 22）、**pnpm 9**（可用 `corepack enable` 后由仓库 `packageManager` 自动对齐）。
 2. **GitHub CLI**：从 [https://cli.github.com/](https://cli.github.com/) 安装，在终端执行 **`gh auth login`**，勾选对仓库的 **repo** 权限（私有库同样需要）。
 3. 已 **`git clone`** 本仓库，且当前 shell 的 **工作目录为仓库根目录**。
-4. 能访问 **npm registry** 与 **nodejs.org**（prepare 脚本会下载 Windows Node zip）。
+4. 能访问 **npm registry**（prepare 脚本不再下载内嵌 Node；**构建机**仍须本机 Node，见上）。
 
 ## 一键命令（本机打包 + 上传 Release 资产）
 
@@ -23,7 +23,7 @@ pnpm run release:desktop:win:gh
 
 ```bash
 node scripts/gh-desktop-release-win.cjs --skip-install   # 已执行过 pnpm install
-node scripts/gh-desktop-release-win.cjs --skip-pack      # 已执行过 pack:desktop:win，仅上传当前 release 目录内产物
+node scripts/gh-desktop-release-win.cjs --skip-pack      # 已执行过 pack:desktop:win，仅上传 apps/desktop/dist-release 内产物
 ```
 
 ## 发版前版本与记录（与 RELEASING.md 一致）
@@ -53,11 +53,11 @@ node scripts/gh-desktop-release-win.cjs --skip-pack      # 已执行过 pack:des
 3. 执行 pnpm run release:desktop:win:gh（或等价：pnpm install --frozen-lockfile、pnpm run pack:desktop:win、node scripts/gh-desktop-release-win.cjs）。
 4. 根据命令输出与 gh 提示处理错误；完成后列出 Release 页面应出现的 exe 文件名。
 
-不要猜测：prepare 的真实顺序以 scripts/prepare-electron-bundled-resources.cjs 为准；上传逻辑以 scripts/gh-desktop-release-win.cjs 为准。
+不要猜测：prepare 的真实顺序以 scripts/prepare-electron-bundled-resources.cjs 为准（构建 API/Web → deploy；**不**再打包 node-win）；上传逻辑以 scripts/gh-desktop-release-win.cjs 为准。
 ```
 
 ## Agent 必读引用
 
-- 打包步骤细节：**`scripts/prepare-electron-bundled-resources.cjs`**（顺序：Node zip → 构建 API → 构建 Web → deploy API → 复制静态资源等）。
+- 打包步骤细节：**`scripts/prepare-electron-bundled-resources.cjs`**（顺序：构建 API → 构建 Web → deploy API → 复制静态资源等；**客户机**用系统 Node 运行）。
 - 仓库协作与 Prisma：**[AGENTS.md](../AGENTS.md)**。
 - 仅 CI 发版清单：**[RELEASING.md](../RELEASING.md)**。

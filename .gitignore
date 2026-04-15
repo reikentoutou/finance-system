@@ -3,12 +3,13 @@ dist/
 *.db
 *.db-journal
 .env
-uploads/
+# 仅忽略仓库根目录 uploads；勿写 uploads/，否则会误伤 apps/api/dist/uploads，桌面包 pnpm deploy 会丢文件
+/uploads/
 .DS_Store
 apps/api/uploads/
 apps/desktop/release/
+apps/desktop/dist-release/
 # 正式 contents 由 prepare 生成；勿忽略整个目录（需保留 README 占位供 electron-builder）
-apps/desktop/resources-bundled/node-win/
 apps/desktop/resources-bundled/api/
 apps/desktop/resources-bundled/web/
 apps/desktop/resources-bundled/serve-web.mjs

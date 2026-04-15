@@ -1,12 +1,12 @@
 /**
  * Windows Electron 壳
  * - 开发（未打包）：打开 FINANCE_WEB_URL 或默认 http://127.0.0.1:5173（需自行起 API+Web）
- * - 生产（打包）：随包内置 Node + API + 静态页；双击 exe 即起本地服务并打开窗口
+ * - 生产（打包）：随包带 API + 静态页，用系统 PATH 中的 node（或 FINANCE_NODE_EXE）；双击 exe 即起本地服务并打开窗口
  */
 const { app, BrowserWindow, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 
 /** 数据目录固定为 %AppData%/FinanceSystem（避免 @scope 包名路径难找） */
 try {
@@ -228,6 +228,18 @@ function raceUrlOrChildExit(child, url, logPath, totalMs = 90000) {
   });
 }
 
+/** 打包态：使用系统 Node，不设 FINANCE_NODE_EXE 时须在 PATH 中可执行 `node` */
+function resolvePackagedNodeExe() {
+  const explicit = process.env.FINANCE_NODE_EXE;
+  if (explicit) {
+    if (fs.existsSync(explicit)) return explicit;
+    return null;
+  }
+  const r = spawnSync('node', ['-e', 'process.exit(0)'], { windowsHide: true });
+  if (r.status === 0) return 'node';
+  return null;
+}
+
 function killChildren() {
   intentionalShutdown = true;
   for (const ch of [apiChild, webChild]) {
@@ -244,13 +256,16 @@ function killChildren() {
 
 async function startBundledServers() {
   const bundled = bundledRoot();
-  const nodeExe = path.join(bundled, 'node-win', 'node.exe');
+  const nodeExe = resolvePackagedNodeExe();
+  if (!nodeExe) {
+    const hint =
+      process.env.FINANCE_NODE_EXE != null && process.env.FINANCE_NODE_EXE !== ''
+        ? `环境变量 FINANCE_NODE_EXE 指向的路径不存在：\n${process.env.FINANCE_NODE_EXE}`
+        : '未在 PATH 中找到 node。请在前台机安装 Node.js（Windows x64，建议 20+），并确保命令行可执行 node；或设置 FINANCE_NODE_EXE 为 node.exe 的完整路径。';
+    throw new Error(hint);
+  }
   const apiRoot = path.join(bundled, 'api');
   const serveScript = path.join(bundled, 'serve-web.mjs');
-
-  if (!fs.existsSync(nodeExe)) {
-    throw new Error(`未找到内置 Node：\n${nodeExe}\n请使用在 Windows 上完整构建的安装包。`);
-  }
   if (!fs.existsSync(path.join(apiRoot, 'dist', 'main.js'))) {
     throw new Error('未找到 API 构建产物（dist/main.js）。');
   }
@@ -356,15 +371,6 @@ app.on('before-quit', () => killChildren());
 async function boot() {
   if (!app.isPackaged) {
     createWindow();
-    return;
-  }
-  const nodeExe = path.join(bundledRoot(), 'node-win', 'node.exe');
-  if (!fs.existsSync(nodeExe)) {
-    dialog.showErrorBox(
-      '安装包不完整',
-      '缺少内置运行环境。请从 Release 下载在 Windows 上完整构建的安装包，勿使用仅含占位文件的开发构建。',
-    );
-    app.quit();
     return;
   }
   try {

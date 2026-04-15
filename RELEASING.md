@@ -14,7 +14,7 @@ GitHub **每个 Release 都会自动附带**：
 
 **Windows 安装包**是 CI 额外上传的资产，名称类似：
 
-- **`FinanceSystem-<版本>-Windows-Setup-x64.exe`**（NSIS，**自包含**：内置 Node + API + 前端；客户无需单独安装 Node）
+- **`FinanceSystem-<版本>-Windows-Setup-x64.exe`**（NSIS：内置 API + 前端；**客户机须安装 Node.js**，或设置 `FINANCE_NODE_EXE`）
 - 可选：同版本的 **`.blockmap`**
 
 请在 Release 页面的 **Assets** 列表里找上述 **`.exe`**；**不要**把「Source code」当成安装包。
@@ -45,7 +45,7 @@ git push origin v0.0.2
 
 便携 exe 可在 **Windows** 本机用根目录 `pnpm run pack:desktop:win:portable` 生成（与 NSIS 同源 prepare）；当前 CI 仅上传 NSIS，若需在 Release 附带便携版可再加一步上传。
 
-**zip 包**（`pnpm run pack:bundle:win`，**仅 Windows**）：`apps/desktop/release/FinanceSystem-Portable-Bundle-<版本>.zip`，内含自包含便携 exe 与说明；客户解压后 **双击 exe** 即可，无需 Node。
+**zip 包**（`pnpm run pack:bundle:win`，**仅 Windows**）：`apps/desktop/dist-release/FinanceSystem-Portable-Bundle-<版本>.zip`，内含便携 exe 与说明；客户须 **已装 Node** 后解压 **双击 exe**。
 
 ### 交付前（实施方）
 

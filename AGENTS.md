@@ -8,7 +8,7 @@
 |------|--------|------|
 | `apps/api` | NestJS 10、Prisma、SQLite、JWT | 后端 API；`prisma/schema.prisma` 在此包内 |
 | `apps/web` | Vue 3、Vite、Element Plus、Pinia、vue-router | 管理端与网管填报 |
-| `apps/desktop` | Electron（Windows x64 交付） | 内嵌 API + 静态站；打包见根 `README.md`；**本机 Windows + GitHub CLI 一键上传 Release** 见 `docs/cursor-windows-release-agent.md`（`pnpm run release:desktop:win:gh`） |
+| `apps/desktop` | Electron（Windows x64 交付） | 打包内含 API + 静态站，**运行时依赖客户机 Node**（或 `FINANCE_NODE_EXE`）；打包见根 `README.md`；**本机 Windows + GitHub CLI 一键上传 Release** 见 `docs/cursor-windows-release-agent.md`（`pnpm run release:desktop:win:gh`） |
 | `docs/` | Markdown | 业务与实施文档索引 |
 | `.agents/skills/` | `skills` CLI 安装的 Vue 生态技能 | 各子目录含 `SKILL.md`；见下文「Vue 技能包」 |
 

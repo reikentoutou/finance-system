@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Windows：安装依赖 → 打 NSIS 自包含包 → 用 GitHub CLI 创建或更新 Release 资源。
+ * Windows：安装依赖 → 打 NSIS 包（内嵌 API/Web，客户机用系统 Node）→ 用 GitHub CLI 创建或更新 Release 资源。
  * 先决条件：已安装 gh 且 `gh auth login`（需 repo 权限）；在仓库根目录执行；网络可用。
  *
  * 用法（仓库根）：
@@ -38,7 +38,7 @@ function runCapture(cmd, args) {
 }
 
 if (process.platform !== 'win32') {
-  console.error('[gh-desktop-release-win] 仅支持在 Windows 上运行（与桌面自包含打包一致）。');
+  console.error('[gh-desktop-release-win] 仅支持在 Windows 上运行（与桌面 NSIS 打包一致）。');
   process.exit(1);
 }
 
@@ -73,7 +73,7 @@ if (!skipPack) {
   run('pnpm', ['run', 'pack:desktop:win']);
 }
 
-const releaseDir = path.join(repoRoot, 'apps', 'desktop', 'release');
+const releaseDir = path.join(repoRoot, 'apps', 'desktop', 'dist-release');
 if (!fs.existsSync(releaseDir)) {
   console.error('[gh-desktop-release-win] 缺少目录', releaseDir);
   process.exit(1);
@@ -100,8 +100,8 @@ if (view.status === 0) {
   const title = `Desktop ${tag} (Windows x64)`;
   const notesPath = path.join(releaseDir, '_gh-release-notes.md');
   const notesBody = [
-    '自包含 NSIS 安装包（本机 pnpm run pack:desktop:win + scripts/gh-desktop-release-win.cjs 上传）。',
-    '客户机无需单独安装 Node；请下载 *-Windows-Setup-x64.exe，勿下载 Source code。',
+    'NSIS 安装包（本机 pnpm run pack:desktop:win + scripts/gh-desktop-release-win.cjs 上传）；内含 API/前端，**不含 Node**。',
+    '客户机须安装 Node.js（x64）或设置 FINANCE_NODE_EXE；请下载 *-Windows-Setup-x64.exe，勿下载 Source code。',
     '变更说明见仓库根目录 CHANGELOG.md。',
   ].join('\n');
   fs.writeFileSync(notesPath, `${notesBody}\n`, 'utf8');
