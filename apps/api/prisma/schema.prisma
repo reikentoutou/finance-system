@@ -14,6 +14,10 @@ enum Role {
   ADMIN
 }
 
+enum DailyReportStatus {
+  approved
+}
+
 model User {
   id           String        @id @default(cuid())
   username     String        @unique
@@ -83,7 +87,7 @@ model DailyReport {
   deviationYen               Int
   deviationReason            String?
 
-  status                     String @default("approved")
+  status                     DailyReportStatus @default(approved)
 
   createdByUserId            String
   createdBy                  User   @relation("CreatedReports", fields: [createdByUserId], references: [id])
@@ -91,4 +95,5 @@ model DailyReport {
 
   @@unique([reportDate, shiftId])
   @@index([reportDate])
+  @@index([createdByUserId, reportDate])
 }

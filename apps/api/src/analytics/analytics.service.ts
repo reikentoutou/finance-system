@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { deviationYenFromStoredFields } from '../calc/daily-report-calc';
 import { Period, tokyoRange } from './period-range';
@@ -11,7 +12,7 @@ export class AnalyticsService {
     const { start, end } = tokyoRange(period, anchorDate);
     const rows = await this.prisma.dailyReport.findMany({
       where: {
-        status: 'approved',
+        status: 'approved' satisfies Prisma.DailyReportWhereInput['status'],
         reportDate: { gte: start, lte: end },
       },
       include: { shift: true, createdBy: { select: { username: true } } },
