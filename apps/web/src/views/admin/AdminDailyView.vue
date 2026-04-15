@@ -146,7 +146,7 @@ function edit(id: string) {
                 <span class="day-sum">{{ formatYen(daySalesYen(list)) }}</span>
               </div>
             </template>
-            <el-table :data="list" size="small" stripe border class="day-table" max-height="320">
+            <el-table :data="list" size="small" stripe border class="day-table">
               <el-table-column prop="shiftNameSnapshot" label="シフト" width="108" />
               <el-table-column label="総売上" min-width="120">
                 <template #default="{ row }">
@@ -196,18 +196,13 @@ function edit(id: string) {
 
 <style scoped>
 .page {
-  flex: 1;
-  min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
 .panel {
-  flex: 1;
-  min-height: 0;
   display: flex;
   flex-direction: column;
-  min-height: min(520px, calc(100vh - 132px));
   padding: 18px 20px 16px;
   border: 1px solid var(--fs-border);
   border-radius: var(--fs-radius-md);
@@ -271,9 +266,6 @@ function edit(id: string) {
 }
 
 .panel-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
   padding-top: 10px;
 }
 

@@ -170,17 +170,13 @@ function logout() {
   --el-main-padding: 0;
   flex: 1;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
   padding: 18px 22px 22px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .main-inner {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
   max-width: 1200px;
   width: 100%;
   margin: 0 auto;
