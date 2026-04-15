@@ -98,8 +98,12 @@ function edit(id: string) {
 </script>
 
 <template>
-  <div v-loading="loading">
+  <div v-loading="loading" class="page">
     <div class="toolbar">
+      <div class="toolbar-text">
+        <h2 class="page-title">全日報</h2>
+        <p class="page-hint">業務日ごとに折りたたみ表示されます。</p>
+      </div>
       <el-button type="primary" @click="openNew">空シフトを補録</el-button>
     </div>
     <el-collapse v-model="expanded">
@@ -146,11 +150,61 @@ function edit(id: string) {
 </template>
 
 <style scoped>
+.page {
+  padding-bottom: 8px;
+}
 .toolbar {
-  margin-bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--fs-border);
+}
+.toolbar-text {
+  min-width: 0;
+}
+.page-title {
+  margin: 0 0 4px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--fs-ink);
+}
+.page-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--fs-muted);
+  line-height: 1.45;
+  max-width: 48ch;
 }
 .cnt {
-  color: #888;
+  color: var(--fs-muted);
+  font-weight: 500;
   margin-left: 8px;
+}
+
+.page :deep(.el-collapse) {
+  border-color: var(--fs-border);
+  border-radius: var(--fs-radius-sm);
+  overflow: hidden;
+  background: var(--fs-surface-elevated);
+}
+
+.page :deep(.el-collapse-item__header) {
+  font-size: 0.95rem;
+  padding: 12px 16px;
+  background: var(--fs-surface);
+}
+
+.page :deep(.el-collapse-item__wrap) {
+  border-color: var(--fs-border);
+}
+
+.page :deep(.el-table) {
+  --el-table-border-color: var(--fs-border);
+  --el-table-header-bg-color: var(--fs-surface);
 }
 </style>

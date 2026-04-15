@@ -51,23 +51,29 @@ async function submit() {
 
 <template>
   <div class="wrap">
-    <el-card class="card">
-      <h2>ログイン</h2>
-      <el-form @submit.prevent="submit">
-        <el-form-item label="ユーザー名">
-          <el-input v-model="form.username" autocomplete="username" />
-        </el-form-item>
-        <el-form-item label="パスワード">
-          <el-input
-            v-model="form.password"
-            type="password"
-            show-password
-            autocomplete="current-password"
-          />
-        </el-form-item>
-        <el-button type="primary" native-type="submit" :loading="loading">ログイン</el-button>
-      </el-form>
-    </el-card>
+    <div class="panel">
+      <p class="eyebrow">財務日報</p>
+      <h1 class="title">ログイン</h1>
+      <p class="lede">業務用アカウントでサインインしてください。</p>
+      <el-card class="card" shadow="never">
+        <el-form @submit.prevent="submit">
+          <el-form-item label="ユーザー名">
+            <el-input v-model="form.username" autocomplete="username" />
+          </el-form-item>
+          <el-form-item label="パスワード">
+            <el-input
+              v-model="form.password"
+              type="password"
+              show-password
+              autocomplete="current-password"
+            />
+          </el-form-item>
+          <el-button type="primary" native-type="submit" :loading="loading" class="submit">
+            ログイン
+          </el-button>
+        </el-form>
+      </el-card>
+    </div>
   </div>
 </template>
 
@@ -77,9 +83,63 @@ async function submit() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f0f2f5;
+  padding: 24px 16px;
+  background:
+    radial-gradient(1200px 600px at 12% -10%, rgba(22, 95, 88, 0.14), transparent 55%),
+    radial-gradient(900px 480px at 88% 110%, rgba(139, 90, 43, 0.08), transparent 50%),
+    var(--fs-page);
 }
+
+.panel {
+  width: min(420px, 100%);
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--fs-muted);
+}
+
+.title {
+  margin: 0 0 8px;
+  font-size: 1.65rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--fs-ink);
+  line-height: 1.25;
+}
+
+.lede {
+  margin: 0 0 18px;
+  font-size: 0.9rem;
+  color: var(--fs-muted);
+  line-height: 1.5;
+  max-width: 36ch;
+}
+
 .card {
-  width: 400px;
+  border-radius: var(--fs-radius-md);
+  border: 1px solid var(--fs-border);
+  background: var(--fs-surface-elevated);
+  box-shadow: var(--fs-shadow-soft);
+}
+
+.card :deep(.el-card__body) {
+  padding: 22px 22px 20px;
+}
+
+.card :deep(.el-form-item__label) {
+  color: var(--fs-muted);
+  font-weight: 500;
+}
+
+.submit {
+  width: 100%;
+  margin-top: 4px;
+  height: 42px;
+  font-weight: 600;
 }
 </style>

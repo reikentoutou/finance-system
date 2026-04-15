@@ -105,13 +105,17 @@ async function submit() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f0f2f5;
+  padding: 24px 16px;
+  background: var(--fs-page);
 }
 .card {
   width: 480px;
+  border-radius: var(--fs-radius-md);
+  border: 1px solid var(--fs-border);
+  box-shadow: var(--fs-shadow-soft);
 }
 .hint {
-  color: #666;
+  color: var(--fs-muted);
   margin-bottom: 16px;
 }
 </style>

@@ -43,34 +43,37 @@ async function retry() {
   max-width: 520px;
   margin: 48px auto;
   padding: 0 16px;
-  font-family: system-ui, sans-serif;
 }
 h1 {
   font-size: 1.35rem;
+  font-weight: 700;
   margin: 0 0 12px;
+  color: var(--fs-ink);
 }
 .lead {
   line-height: 1.55;
-  color: #444;
+  color: var(--fs-muted);
   margin: 0 0 16px;
 }
 .cmd {
-  background: #f4f4f5;
+  background: var(--fs-surface);
+  border: 1px solid var(--fs-border);
   padding: 12px 14px;
-  border-radius: 8px;
+  border-radius: var(--fs-radius-sm);
   font-size: 13px;
   overflow-x: auto;
   margin: 0 0 12px;
 }
 .hint {
   font-size: 13px;
-  color: #666;
+  color: var(--fs-muted);
   margin: 0 0 20px;
 }
 code {
   font-size: 0.92em;
   padding: 1px 6px;
-  background: #eee;
+  background: var(--fs-surface);
+  border: 1px solid var(--fs-border);
   border-radius: 4px;
 }
 </style>

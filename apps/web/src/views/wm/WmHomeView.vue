@@ -52,15 +52,18 @@ function logout() {
 <template>
   <div class="page">
     <header class="bar">
-      <h1>日報（網管）</h1>
+      <div class="bar-titles">
+        <p class="eyebrow">財務日報</p>
+        <h1 class="title">日報（網管）</h1>
+      </div>
       <div class="right">
-        <span>{{ auth.user?.username }}</span>
-        <el-button link type="primary" @click="logout">ログアウト</el-button>
+        <span class="user">{{ auth.user?.username }}</span>
+        <el-button link type="primary" class="logout" @click="logout">ログアウト</el-button>
       </div>
     </header>
     <div class="body">
       <div class="row">
-        <span>業務日（東京）</span>
+        <span class="row-label">業務日（東京）</span>
         <el-date-picker v-model="reportDate" value-format="YYYY-MM-DD" type="date" />
       </div>
       <el-row :gutter="16" class="grid">
@@ -82,46 +85,102 @@ function logout() {
 <style scoped>
 .page {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: var(--fs-page);
 }
 .bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 20px;
-  background: #fff;
-  border-bottom: 1px solid #e8e8e8;
+  padding: 14px 22px 14px 26px;
+  background: var(--fs-surface-elevated);
+  border-bottom: 1px solid var(--fs-border);
+  box-shadow: 0 1px 0 rgba(28, 26, 22, 0.04);
+}
+.bar-titles {
+  min-width: 0;
+}
+.eyebrow {
+  margin: 0 0 2px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--fs-muted);
+}
+.title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--fs-ink);
+  line-height: 1.3;
 }
 .body {
-  padding: 20px;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 22px 26px 40px;
 }
 .row {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
+}
+.row-label {
+  font-weight: 600;
+  color: var(--fs-ink);
 }
 .grid .cell {
   cursor: pointer;
-  min-height: 120px;
+  min-height: 128px;
+  border-radius: var(--fs-radius-md);
+  border: 1px solid var(--fs-border);
+  background: var(--fs-surface-elevated);
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+.grid .cell:hover {
+  border-color: var(--fs-border-strong);
+  box-shadow: var(--fs-shadow-soft);
+  transform: translateY(-1px);
+}
+.grid .cell :deep(.el-card__body) {
+  padding: 16px 16px 14px;
 }
 .t {
-  font-weight: 600;
-  margin-bottom: 8px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--fs-ink);
+  font-size: 0.95rem;
 }
 .ok {
-  color: #0a0;
+  color: var(--fs-success-ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 .sub {
+  margin-top: 4px;
   font-size: 12px;
-  color: #666;
+  color: var(--fs-muted);
+  line-height: 1.45;
 }
 .empty {
-  color: #999;
+  color: var(--fs-faint);
+  font-size: 0.9rem;
 }
 .right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
+}
+.user {
+  font-weight: 600;
+  color: var(--fs-ink);
+}
+.logout {
+  font-weight: 500;
 }
 </style>

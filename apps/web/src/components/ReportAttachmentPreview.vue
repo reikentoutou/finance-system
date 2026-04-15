@@ -74,7 +74,7 @@ const taxIsPdf = computed(() => (taxUrl.value ? isPdfUploadUrl(taxUrl.value) : f
   object-fit: contain;
   border-radius: 4px;
   border: 1px solid var(--el-border-color-lighter);
-  background: #fff;
+  background: var(--fs-surface-elevated);
 }
 .attach-pdf {
   display: flex;
@@ -86,6 +86,6 @@ const taxIsPdf = computed(() => (taxUrl.value ? isPdfUploadUrl(taxUrl.value) : f
   min-height: 280px;
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 4px;
-  background: #fafafa;
+  background: var(--fs-surface);
 }
 </style>
