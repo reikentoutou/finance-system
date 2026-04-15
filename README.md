@@ -57,7 +57,7 @@ pnpm run pack:desktop:win             # NSIS 安装向导（x64）
 pnpm run pack:desktop:win:portable    # 单文件便携 exe（x64）
 ```
 
-以上命令会先运行 **`scripts/prepare-electron-bundled-resources.cjs`**（下载 Node zip、pnpm deploy API、构建 Web），再打 electron；结束后会 **恢复** `apps/desktop/resources-bundled/` 占位文件，避免仓库里长期残留大文件。
+以上命令会先运行 **`scripts/prepare-electron-bundled-resources.cjs`**（下载 Node zip → **构建 API** → **构建 Web** → **pnpm deploy** API 并复制静态资源到 bundled），再打 electron；结束后会 **恢复** `apps/desktop/resources-bundled/` 占位文件，避免仓库里长期残留大文件。
 
 仅打壳、不准备内嵌资源（例如 macOS 上试打 Windows 安装包外形，**不可交付客户**）：
 
@@ -66,6 +66,8 @@ pnpm run pack:desktop:win:shell
 ```
 
 产物目录：`apps/desktop/release/`（已 `.gitignore`）。
+
+**在新 Windows 本机打包并用 GitHub CLI 上传 Release**：安装 [GitHub CLI](https://cli.github.com/) 并执行 `gh auth login` 后，在仓库根目录运行 **`pnpm run release:desktop:win:gh`**（含 `pnpm install`、`pack:desktop:win`、按 `apps/desktop/package.json` 的 `version` 创建或更新 `v*` Release）。详细步骤、Composer 可复制提示词与 CI 二选一说明见 **[docs/cursor-windows-release-agent.md](./docs/cursor-windows-release-agent.md)**。
 
 ### 交付前配置（你装在前台机即可）
 

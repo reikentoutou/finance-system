@@ -15,6 +15,7 @@
     "pack:desktop:win:portable": "node scripts/prepare-electron-bundled-resources.cjs && pnpm --filter @finance/desktop run pack:win:portable && node scripts/restore-resources-bundled-placeholder.cjs",
     "pack:desktop:win:shell": "pnpm --filter @finance/desktop run pack:win",
     "pack:bundle:win": "node scripts/pack-windows-bundle.cjs",
+    "release:desktop:win:gh": "node scripts/gh-desktop-release-win.cjs",
     "docs:skills": "node scripts/update-skills-usage-doc.cjs"
   },
   "devDependencies": {

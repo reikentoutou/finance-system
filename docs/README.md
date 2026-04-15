@@ -4,6 +4,7 @@
 |------|------|
 | [实施计划-财务统计系统.md](./实施计划-财务统计系统.md) | 业务规则、班次、向导、导出与桌面端等实施说明（与历史 Plan 同步的仓库内副本） |
 | [skills-usage.md](./skills-usage.md) | `.agents/skills` 各 Skill 的用途与用法；中文用途见 [skills-catalog.zh.json](./skills-catalog.zh.json)；安装新 skill 后补全 JSON 并运行 `pnpm run docs:skills` |
+| [cursor-windows-release-agent.md](./cursor-windows-release-agent.md) | 新 Windows 上本机打包 + `gh` 上传 GitHub Release；含 **`pnpm run release:desktop:win:gh`** 与 Cursor Composer 可复制提示词 |
 | [AGENTS.md](../AGENTS.md) | AI 编码助手与协作者约定（范围、Prisma、**API `strict: true`**、Nest/Vue 一致性） |
 
 仓库总览、开发与发布流程见根目录 **[README.md](../README.md)**、**[RELEASING.md](../RELEASING.md)**、**[CHANGELOG.md](../CHANGELOG.md)**。Prisma `db:generate`、TS/IDE 排查、**Cursor 安装 Vue 扩展失败时的 VSIX 手动安装** 见根目录 README「开发与构建」小节。
