@@ -1,11 +1,20 @@
 import { TaxFreeCardTier } from '@prisma/client';
 
-/** 总销售额 */
+/**
+ * フォーム/API 受信：チャージ・ナイトは税抜円 → 10% 加算して税込（四捨五入）。
+ * DB・集計では税込を保存する。
+ */
+export function chargeNightPackTaxIncludedFromExcluded(excludedYen: number): number {
+  const n = Math.max(0, Math.floor(Number(excludedYen)) || 0);
+  return Math.round((n * 11) / 10);
+}
+
+/** 総売上（税込）：chargeNightPackYen・productSalesYen はいずれも税込円（DB 行と同じ口径）。 */
 export function totalSalesYen(
-  chargeNightPackYen: number,
-  productSalesYen: number,
+  chargeNightPackTaxIncluded: number,
+  productSalesTaxIncluded: number,
 ): number {
-  return chargeNightPackYen + productSalesYen;
+  return chargeNightPackTaxIncluded + productSalesTaxIncluded;
 }
 
 /**
@@ -29,38 +38,43 @@ export function taxFreeCardAmountYen(
 }
 
 /**
- * 偏差：Newage + Airpay+QR + 现金合计 + 10% 券面额 − 总销售额。
- * 现金合计 = 收银实点（含底钱）− 底钱（API 以 cashTotalYen 存扣减后的净值）。
+ * 偏差：Newage + Airpay+QR + レジ実点（ユーザー入力・底銭込）+ 10% 券面額 − 総売上 − レジ底銭。
+ * cashTotalYen は DB に保存する実点（底銭込）円。底銭は設定の registerFloatYen。
  * 为负时须填理由（由上层校验）。
  */
 export function deviationYen(
   totalSales: number,
   newageYen: number,
   airpayQrYen: number,
-  cashTotalYen: number,
+  cashInDrawerGrossYen: number,
   taxFreeCardAmountYen: number,
+  registerFloatYen: number,
 ): number {
   return (
     newageYen +
     airpayQrYen +
-    cashTotalYen +
+    cashInDrawerGrossYen +
     taxFreeCardAmountYen -
-    totalSales
+    totalSales -
+    registerFloatYen
   );
 }
 
 /**
  * 列表/汇总/导出用：按已存字段重算偏差（与 create/update 时公式一致）。
- * 避免历史行 deviationYen 与 cashTotalYen 等不一致时出现错误展示。
+ * registerFloatYen は現在の AppSettings に合わせる（履歴行の実点は cashTotalYen に保存済み）。
  */
-export function deviationYenFromStoredFields(row: {
-  chargeNightPackYen: number;
-  productSalesYen: number;
-  newageYen: number;
-  airpayQrYen: number;
-  cashTotalYen: number;
-  taxFreeCardAmountYen: number;
-}): number {
+export function deviationYenFromStoredFields(
+  row: {
+    chargeNightPackYen: number;
+    productSalesYen: number;
+    newageYen: number;
+    airpayQrYen: number;
+    cashTotalYen: number;
+    taxFreeCardAmountYen: number;
+  },
+  registerFloatYen: number,
+): number {
   const ts = totalSalesYen(row.chargeNightPackYen, row.productSalesYen);
   return deviationYen(
     ts,
@@ -68,5 +82,6 @@ export function deviationYenFromStoredFields(row: {
     row.airpayQrYen,
     row.cashTotalYen,
     row.taxFreeCardAmountYen,
+    registerFloatYen,
   );
 }

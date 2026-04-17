@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const props = defineProps<{
   preview: {
+    chargeNightPackTaxIncludedYen: number;
     totalSalesYen: number;
     taxFreeCardAmountYen: number;
     deviationYen: number;
@@ -12,7 +13,6 @@ const props = defineProps<{
   registerFloatAmount: number;
   startStr: string;
   endStr: string;
-  chargeNightPackYen: number;
   productSalesYen: number;
   newageYen: number;
   airpayQrYen: number;
@@ -69,11 +69,11 @@ function couponLine(): string {
       <h3 class="block-title">売上・クーポン</h3>
       <div class="kv-grid">
         <div class="kv-pair">
-          <span class="kv-sublabel">チャージ・ナイト</span>
-          <span class="kv-num">{{ yen(chargeNightPackYen) }}</span>
+          <span class="kv-sublabel">チャージ・ナイト（税込）</span>
+          <span class="kv-num">{{ yen(preview.chargeNightPackTaxIncludedYen) }}</span>
         </div>
         <div class="kv-pair">
-          <span class="kv-sublabel">商品売上</span>
+          <span class="kv-sublabel">商品売上（税込）</span>
           <span class="kv-num">{{ yen(productSalesYen) }}</span>
         </div>
       </div>

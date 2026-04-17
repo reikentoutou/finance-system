@@ -60,6 +60,8 @@ export class ExportService {
     });
     if (!row) throw new NotFoundException();
 
+    const registerFloat = await this.getRegisterFloatAmount();
+
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('日報');
     ws.columns = [
@@ -72,7 +74,10 @@ export class ExportService {
       { k: 'シフト', v: row.shiftNameSnapshot },
       { k: '時間帯', v: row.timeRangeLabelSnapshot },
       { k: '責任者', v: row.responsiblePersonSnapshot },
-      { k: 'チャージ・ナイト/商品売上', v: `${row.chargeNightPackYen} / ${row.productSalesYen}` },
+      {
+        k: 'チャージ（税込）/商品売上（税込）',
+        v: `${row.chargeNightPackYen} / ${row.productSalesYen}`,
+      },
       { k: '総売上', v: row.totalSalesYen },
       {
         k: '10％クーポン（枚数・面額別）',
@@ -83,7 +88,7 @@ export class ExportService {
         ),
       },
       { k: '10％クーポン額', v: row.taxFreeCardAmountYen },
-      { k: '偏差', v: deviationYenFromStoredFields(row) },
+      { k: '偏差', v: deviationYenFromStoredFields(row, registerFloat) },
       { k: '偏差理由', v: row.deviationReason ?? '' },
       { k: '提出者', v: row.createdBy.username },
     ];
@@ -107,6 +112,7 @@ export class ExportService {
     });
     if (!row) throw new NotFoundException();
 
+    const registerFloat = await this.getRegisterFloatAmount();
     const denomById = await this.loadTierDenomById();
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
 <style>body{font-family:sans-serif} table{border-collapse:collapse;width:100%} td{border:1px solid #333;padding:6px}</style>
@@ -126,7 +132,7 @@ ${[
     ),
   ],
   ['10％クーポン額', row.taxFreeCardAmountYen],
-  ['偏差', deviationYenFromStoredFields(row)],
+  ['偏差', deviationYenFromStoredFields(row, registerFloat)],
   ['偏差理由', row.deviationReason ?? ''],
   ['提出者', row.createdBy.username],
 ]
@@ -159,7 +165,7 @@ ${[
       const registerFloat = await this.getRegisterFloatAmount();
       const denomById = await this.loadTierDenomById();
       const sorted = this.sortRowsByShift(data.rows);
-      const gt = this.aggregateGrandTotalsFromRows(data.rows);
+      const gt = this.aggregateGrandTotalsFromRows(data.rows, registerFloat);
       ws.addRow(['業務日（白1 開始日）', data.range.start]);
       ws.addRow(['— 合計（全日・シフト縦表） —', '']);
       for (const [k, v] of this.grandTotalPairs(gt)) {
@@ -176,7 +182,7 @@ ${[
     } else {
       const registerFloat = await this.getRegisterFloatAmount();
       const denomById = await this.loadTierDenomById();
-      const gt = this.aggregateGrandTotalsFromRows(data.rows);
+      const gt = this.aggregateGrandTotalsFromRows(data.rows, registerFloat);
       ws.addRow(['集計種別', periodLabelJa(period)]);
       ws.addRow(['期間', `${data.range.start} – ${data.range.end}`]);
       ws.addRow(['— 合計（期間内・縦表） —', '']);
@@ -234,7 +240,7 @@ ${[
       const registerFloat = await this.getRegisterFloatAmount();
       const denomById = await this.loadTierDenomById();
       const sorted = this.sortRowsByShift(data.rows);
-      const gt = this.aggregateGrandTotalsFromRows(data.rows);
+      const gt = this.aggregateGrandTotalsFromRows(data.rows, registerFloat);
       const blocks =
         sorted.length > 0
           ? sorted
@@ -378,7 +384,7 @@ ${blocks ? `<h2 class="sub">シフト別内訳</h2>${blocks}` : ''}
               return `<h2 class="bizday">業務日 ${escapeHtml(date)}</h2>${inner}`;
             })
             .join('');
-    const gt = this.aggregateGrandTotalsFromRows(data.rows);
+    const gt = this.aggregateGrandTotalsFromRows(data.rows, registerFloat);
     const rangeTitle =
       data.range.start === data.range.end
         ? formatJaDate(data.range.start)
@@ -408,11 +414,15 @@ ${byShiftVert}
 </body></html>`;
   }
 
-  private aggregateGrandTotalsFromRows(rows: SummaryRow[]): GrandTotalsAgg {
+  private aggregateGrandTotalsFromRows(
+    rows: SummaryRow[],
+    registerFloat: number,
+  ): GrandTotalsAgg {
     let totalSalesYen = 0;
     let taxFreeCardAmountYen = 0;
     let newageYen = 0;
     let airpayQrYen = 0;
+    /** 現金合計（実点 − 底銭）の合算 */
     let cashTotalYen = 0;
     let deviationYen = 0;
     for (const r of rows) {
@@ -420,8 +430,8 @@ ${byShiftVert}
       taxFreeCardAmountYen += r.taxFreeCardAmountYen;
       newageYen += r.newageYen;
       airpayQrYen += r.airpayQrYen;
-      cashTotalYen += r.cashTotalYen;
-      deviationYen += deviationYenFromStoredFields(r);
+      cashTotalYen += Math.max(0, r.cashTotalYen - registerFloat);
+      deviationYen += deviationYenFromStoredFields(r, registerFloat);
     }
     return {
       totalSalesYen,
@@ -487,11 +497,12 @@ ${byShiftVert}
     registerFloat: number,
     denomById: Map<string, number>,
   ): [string, string | number][] {
-    const cashIn = r.cashTotalYen + registerFloat;
+    const cashIn = r.cashTotalYen;
+    const cashNet = Math.max(0, r.cashTotalYen - registerFloat);
     return [
       ['責任者', r.responsiblePersonSnapshot],
       ['時間帯', r.timeRangeLabelSnapshot],
-      ['チャージ・ナイト', `${r.chargeNightPackYen} 円`],
+      ['チャージ・ナイト（税込）', `${r.chargeNightPackYen} 円`],
       ['商品売上', `${r.productSalesYen} 円`],
       ['総売上', `${r.totalSalesYen} 円`],
       [
@@ -507,8 +518,8 @@ ${byShiftVert}
       ['Airpay+QR', `${r.airpayQrYen} 円`],
       ['レジ実点（底銭込）', `${cashIn} 円`],
       ['レジ底銭（設定）', `${registerFloat} 円`],
-      ['現金合計（実点 − 底銭）', `${r.cashTotalYen} 円`],
-      ['偏差', `${deviationYenFromStoredFields(r)} 円`],
+      ['現金合計（実点 − 底銭）', `${cashNet} 円`],
+      ['偏差', `${deviationYenFromStoredFields(r, registerFloat)} 円`],
       ['偏差理由', r.deviationReason?.trim() || '—'],
       ['提出者', r.createdBy.username],
     ];

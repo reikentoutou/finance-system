@@ -69,7 +69,9 @@ model DailyReport {
   endMinuteOfDay             Int
   timeRangeLabelSnapshot     String
 
+  /// チャージ・ナイト（税込円）— API 受信は税抜を×1.1 換算して保存
   chargeNightPackYen         Int
+  /// 商品売上（税込円）
   productSalesYen            Int
 
   /** 券种 id → 枚数。SQLite 下 Json 的 @default 会生成非法 SQL，故省略默认值，由应用将 null 视为 {} */
@@ -77,6 +79,7 @@ model DailyReport {
 
   newageYen                  Int
   airpayQrYen                Int
+  /// レジ実点（底銭込）円 — ユーザー入力そのまま。偏差は本列＋他項目−総売上−底銭（設定）
   cashTotalYen               Int
 
   ddnPhotoKey                String?

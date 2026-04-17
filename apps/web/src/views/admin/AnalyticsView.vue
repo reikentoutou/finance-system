@@ -72,8 +72,8 @@ const grandTotals = computed(() => {
     taxFreeCardAmountYen += r.taxFreeCardAmountYen;
     newageYen += r.newageYen;
     airpayQrYen += r.airpayQrYen;
-    cashTotalYen += r.cashTotalYen;
-    deviationYen += deviationYenFromStoredFields(r);
+    cashTotalYen += Math.max(0, r.cashTotalYen - registerFloatAmount.value);
+    deviationYen += deviationYenFromStoredFields(r, registerFloatAmount.value);
   }
   return {
     totalSalesYen,
@@ -145,11 +145,15 @@ function renderChart() {
 }
 
 function cashInDrawer(r: DayReportRow): number {
-  return r.cashTotalYen + registerFloatAmount.value;
+  return r.cashTotalYen;
+}
+
+function cashNetRow(r: DayReportRow): number {
+  return Math.max(0, r.cashTotalYen - registerFloatAmount.value);
 }
 
 function rowDeviation(r: DayReportRow): number {
-  return deviationYenFromStoredFields(r);
+  return deviationYenFromStoredFields(r, registerFloatAmount.value);
 }
 
 onMounted(load);
@@ -244,7 +248,7 @@ async function downloadAggregate(format: 'xlsx' | 'pdf') {
             <el-descriptions-item label="時間帯">
               {{ r.timeRangeLabelSnapshot }}
             </el-descriptions-item>
-            <el-descriptions-item label="チャージ・ナイト">
+            <el-descriptions-item label="チャージ・ナイト（税込）">
               {{ r.chargeNightPackYen }} 円
             </el-descriptions-item>
             <el-descriptions-item label="商品売上">
@@ -268,7 +272,7 @@ async function downloadAggregate(format: 'xlsx' | 'pdf') {
               {{ registerFloatAmount }} 円
             </el-descriptions-item>
             <el-descriptions-item label="現金合計（実点 − 底銭）">
-              {{ r.cashTotalYen }} 円
+              {{ cashNetRow(r) }} 円
             </el-descriptions-item>
             <el-descriptions-item label="偏差">
               <span class="deviation">{{ rowDeviation(r) }} 円</span>

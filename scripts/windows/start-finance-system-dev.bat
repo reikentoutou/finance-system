@@ -9,11 +9,11 @@ if not exist "package.json" (
 )
 
 echo [FinanceSystem] 将打开新窗口运行 pnpm run dev，请勿关闭该窗口。
-echo [FinanceSystem] 数秒后会在默认浏览器中打开 http://127.0.0.1:5173/
+echo [FinanceSystem] 数秒后会在默认浏览器中打开 http://localhost:5173/
 start "FinanceSystem pnpm dev" cmd /k "pnpm run dev"
 
 timeout /t 8 /nobreak >nul
-start "" "http://127.0.0.1:5173/"
+start "" "http://localhost:5173/"
 
 popd
 endlocal

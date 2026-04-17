@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import {
   resolveUploadedFileUrl,
   isPdfUploadUrl,
+  isImageUploadUrl,
 } from '@/utils/upload-url';
 
 const props = defineProps<{
@@ -15,6 +16,9 @@ const taxUrl = computed(() => resolveUploadedFileUrl(props.taxFreeCardPhotoKey))
 
 const ddnIsPdf = computed(() => (ddnUrl.value ? isPdfUploadUrl(ddnUrl.value) : false));
 const taxIsPdf = computed(() => (taxUrl.value ? isPdfUploadUrl(taxUrl.value) : false));
+const taxIsImage = computed(() =>
+  taxUrl.value ? isImageUploadUrl(taxUrl.value) : false,
+);
 </script>
 
 <template>
@@ -33,12 +37,22 @@ const taxIsPdf = computed(() => (taxUrl.value ? isPdfUploadUrl(taxUrl.value) : f
       </div>
       <div v-if="taxUrl" class="attach-cell">
         <div class="attach-label">10％クーポン</div>
-        <img v-if="!taxIsPdf" :src="taxUrl" alt="10% coupon" class="attach-img" />
-        <div v-else class="attach-pdf">
+        <div v-if="taxIsPdf" class="attach-pdf">
           <el-link :href="taxUrl" target="_blank" rel="noopener" type="primary">
             PDF を別タブで開く
           </el-link>
           <iframe :src="taxUrl" class="attach-iframe" title="Coupon PDF" />
+        </div>
+        <img
+          v-else-if="taxIsImage"
+          :src="taxUrl"
+          alt="10% coupon"
+          class="attach-img"
+        />
+        <div v-else class="attach-file">
+          <el-link :href="taxUrl" target="_blank" rel="noopener" type="primary">
+            ファイルを別タブで開く
+          </el-link>
         </div>
       </div>
     </div>
@@ -87,5 +101,8 @@ const taxIsPdf = computed(() => (taxUrl.value ? isPdfUploadUrl(taxUrl.value) : f
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 4px;
   background: var(--fs-surface);
+}
+.attach-file {
+  padding: 8px 0;
 }
 </style>

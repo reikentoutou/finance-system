@@ -79,6 +79,11 @@ const router = createRouter({
       ],
     },
     { path: '/', redirect: '/login' },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('@/views/NotFoundView.vue'),
+    },
   ],
 });
 
@@ -105,8 +110,16 @@ router.beforeEach(async (to) => {
     return { name: 'login' };
   }
   const auth = useAuthStore();
-  const publicNames = ['login', 'setup', 'service-unavailable'];
-  if (publicNames.includes(String(to.name))) return true;
+  /** 未ログインでよいルート（末尾の catch-all `not-found` を含む） */
+  const publicRouteNames = new Set([
+    'login',
+    'setup',
+    'service-unavailable',
+    'not-found',
+  ]);
+  if (typeof to.name === 'string' && publicRouteNames.has(to.name)) {
+    return true;
+  }
   if (!auth.token) return { name: 'login', query: { redirect: to.fullPath } };
   const need = to.meta.role;
   if (need && auth.user?.role !== need) {

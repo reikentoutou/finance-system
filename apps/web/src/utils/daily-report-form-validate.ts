@@ -11,7 +11,6 @@ type FormSlice = {
 /** 从「填写」进入「确认」前的共用校验；返回错误文案或 null */
 export function validateDailyReportGoToConfirm(opts: {
   form: FormSlice;
-  registerFloatAmount: number;
   ddnFile: File | null;
   savedDdnPhotoKey: string | null;
   /** 仅管理员新建 */
@@ -22,7 +21,7 @@ export function validateDailyReportGoToConfirm(opts: {
     shiftId: string;
   };
 }): string | null {
-  const { form, registerFloatAmount, ddnFile, savedDdnPhotoKey, admin } = opts;
+  const { form, ddnFile, savedDdnPhotoKey, admin } = opts;
   if (admin?.isNew) {
     if (!admin.createdByUserId || !admin.reportDate || !admin.shiftId) {
       return '日付・シフト・提出元（網管）を確認してください';
@@ -30,9 +29,6 @@ export function validateDailyReportGoToConfirm(opts: {
   }
   if (!form.responsiblePersonId) {
     return '責任者を選択してください';
-  }
-  if (form.cashInDrawerYen < registerFloatAmount) {
-    return 'レジ実点（底銭込）はレジ底銭以上の金額を入力してください';
   }
   const sm = parseHmToMinute(form.startStr);
   const em = parseHmToMinute(form.endStr);
@@ -48,7 +44,6 @@ export function validateDailyReportGoToConfirm(opts: {
 /** 正式提交前（confirmCash 弹窗与发 HTTP 之前）的共用校验 */
 export function validateDailyReportSubmit(opts: {
   form: FormSlice;
-  registerFloatAmount: number;
   ddnFile: File | null;
   savedDdnPhotoKey: string | null;
   previewDeviationYen: number;
@@ -59,8 +54,7 @@ export function validateDailyReportSubmit(opts: {
     shiftId: string;
   };
 }): string | null {
-  const { form, registerFloatAmount, ddnFile, savedDdnPhotoKey, previewDeviationYen, admin } =
-    opts;
+  const { form, ddnFile, savedDdnPhotoKey, previewDeviationYen, admin } = opts;
   if (!form.responsiblePersonId) {
     return '責任者を選択してください';
   }
@@ -71,9 +65,6 @@ export function validateDailyReportSubmit(opts: {
   }
   if (!ddnFile && !savedDdnPhotoKey) {
     return 'DDN（画像／PDF）は必須です。ファイルを選択してください。';
-  }
-  if (form.cashInDrawerYen < registerFloatAmount) {
-    return 'レジ実点（底銭込）はレジ底銭以上の金額を入力してください';
   }
   if (previewDeviationYen < 0) {
     if (!form.deviationReason?.trim()) {

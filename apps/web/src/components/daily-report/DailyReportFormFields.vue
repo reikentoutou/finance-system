@@ -4,6 +4,7 @@ import { QuestionFilled } from '@element-plus/icons-vue';
 import type { TaxTier } from '@/utils/daily-report-calc';
 import HmSplitSelect from '@/components/HmSplitSelect.vue';
 import ReportAttachmentPreview from '@/components/ReportAttachmentPreview.vue';
+import { REPORT_TAX_FREE_ACCEPT } from '@/composables/useReportAttachmentFiles';
 
 /** 与两页 `reactive({...})` 对齐的可变表单切片（父组件传入同一 reactive） */
 export type DailyReportFormFieldsModel = {
@@ -19,18 +20,23 @@ export type DailyReportFormFieldsModel = {
   deviationReason: string;
 };
 
-defineProps<{
-  form: DailyReportFormFieldsModel;
-  persons: { id: string; name: string }[];
-  activeTiersSorted: TaxTier[];
-  registerFloatAmount: number;
-  cashNetForReport: number;
-  savedDdnPhotoKey: string | null;
-  savedTaxFreePhotoKey: string | null;
-  ddnFile: File | null;
-  taxFile: File | null;
-  photoAccept: string;
-  couponEmptyHint: string;
+withDefaults(
+  defineProps<{
+    form: DailyReportFormFieldsModel;
+    persons: { id: string; name: string }[];
+    activeTiersSorted: TaxTier[];
+    registerFloatAmount: number;
+    cashNetForReport: number;
+    /** 与确认页「偏差（計算）」同一逻辑（useDailyReportPreview） */
+    deviationYenPreview: number;
+    savedDdnPhotoKey: string | null;
+    savedTaxFreePhotoKey: string | null;
+    ddnFile: File | null;
+    taxFile: File | null;
+    photoAccept: string;
+    /** 10％クーポン行の file accept（既定で TXT / xlsx 含む） */
+    taxFreePhotoAccept?: string;
+    couponEmptyHint: string;
   /** wm：时段下展示长说明；admin：不展示 */
   variant: 'wm' | 'admin';
   /** 网管：仅新建时展示业务日说明 */
@@ -39,7 +45,15 @@ defineProps<{
   /** 管理员新建：填报人（网管） */
   showWebmasterSelect?: boolean;
   webmasters?: { id: string; username: string }[];
-}>();
+  }>(),
+  {
+    taxFreePhotoAccept: REPORT_TAX_FREE_ACCEPT,
+  },
+);
+
+function formatYen(n: number): string {
+  return `${n.toLocaleString('ja-JP')} 円`;
+}
 
 const createdByUserId = defineModel<string>('createdByUserId', { required: false });
 
@@ -123,11 +137,11 @@ const wmTimeCollapse = ref<string[]>([]);
       <el-form-item label="チャージ・ナイト / 商品売上" class="item-plain">
         <div class="money-pair">
           <div class="money-cell">
-            <span class="sub-label">チャージ・ナイト</span>
+            <span class="sub-label">チャージ・ナイト（税抜）</span>
             <el-input-number v-model="form.chargeNightPackYen" :min="0" controls-position="right" />
           </div>
           <div class="money-cell">
-            <span class="sub-label">商品売上</span>
+            <span class="sub-label">商品売上（税込）</span>
             <el-input-number v-model="form.productSalesYen" :min="0" controls-position="right" />
           </div>
         </div>
@@ -183,6 +197,10 @@ const wmTimeCollapse = ref<string[]>([]);
 
     <section class="block">
       <h3 class="block-title">メモ</h3>
+      <div class="deviation-preview">
+        <h4 class="deviation-preview-title">偏差（計算）</h4>
+        <p class="deviation-num">{{ formatYen(deviationYenPreview) }}</p>
+      </div>
       <el-form-item label="偏差理由（負偏差時は必須）" class="item-plain">
         <el-input v-model="form.deviationReason" type="textarea" :rows="3" />
       </el-form-item>
@@ -203,13 +221,13 @@ const wmTimeCollapse = ref<string[]>([]);
           <span class="file-name" :class="{ 'is-empty': !ddnFile }">{{ ddnFile?.name ?? '未選択（必須）' }}</span>
         </div>
       </el-form-item>
-      <el-form-item label="10％クーポン（画像／PDF）" class="item-plain">
+      <el-form-item label="10％クーポン（画像／PDF／TXT／Excel）" class="item-plain">
         <div class="file-row">
           <input
             ref="taxInputRef"
             type="file"
             class="visually-hidden"
-            :accept="photoAccept"
+            :accept="taxFreePhotoAccept"
             @change="$emit('pickTax', $event)"
           />
           <el-button @click="taxInputRef?.click()">ファイルを選択</el-button>
@@ -410,6 +428,32 @@ const wmTimeCollapse = ref<string[]>([]);
   margin: 8px 0 0;
   font-size: 13px;
   color: var(--fs-muted, var(--el-text-color-secondary));
+}
+
+.deviation-preview {
+  margin-bottom: 16px;
+  padding: 16px 18px 14px;
+  border: 1px solid var(--fs-border-strong, var(--el-border-color));
+  border-radius: var(--fs-radius-md, 10px);
+  background: var(--fs-surface, var(--el-fill-color-blank));
+}
+
+.deviation-preview-title {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fs-muted, var(--el-text-color-secondary));
+}
+
+.deviation-num {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--fs-ink, var(--el-text-color-primary));
 }
 
 .file-row {

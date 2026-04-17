@@ -1,10 +1,34 @@
-/** 与 API 一致；参数 cashTotalYen 为结算用净额（实点 − 底钱） */
+/** 与 API 一致；cashTotalYen / 表单实点为用户输入的レジ実点（底銭込）；偏差式中另减底銭 */
 
+/** チャージ・ナイト：税抜入力 → 税込（×1.1、整数四捨五入）。 */
+export function chargeNightPackTaxIncludedFromExcluded(excludedYen: number): number {
+  const n = Math.max(0, Math.floor(Number(excludedYen)) || 0);
+  return Math.round((n * 11) / 10);
+}
+
+/** GET の税込チャージをフォーム税抜表示に戻す（編集時）。 */
+export function chargeNightPackExcludedFromIncluded(includedYen: number): number {
+  const n = Math.max(0, Math.floor(Number(includedYen)) || 0);
+  return Math.round((n * 10) / 11);
+}
+
+/** 総売上（税込）：チャージは換算後の税込 + 商品売上（税込）。 */
 export function totalSalesYen(
-  chargeNightPackYen: number,
-  productSalesYen: number,
+  chargeNightPackExcludedYen: number,
+  productSalesTaxIncludedYen: number,
 ): number {
-  return chargeNightPackYen + productSalesYen;
+  return (
+    chargeNightPackTaxIncludedFromExcluded(chargeNightPackExcludedYen) +
+    productSalesTaxIncludedYen
+  );
+}
+
+/** DB 行の税込チャージ＋税込商品売上（再計算・一覧用）。 */
+export function totalSalesYenFromStoredTaxIncluded(
+  chargeNightPackTaxIncluded: number,
+  productSalesTaxIncluded: number,
+): number {
+  return chargeNightPackTaxIncluded + productSalesTaxIncluded;
 }
 
 export type TaxTier = {
@@ -67,33 +91,42 @@ export function deviationYen(
   totalSales: number,
   newageYen: number,
   airpayQrYen: number,
-  cashTotalYen: number,
+  cashInDrawerGrossYen: number,
   taxFreeCardAmountYen: number,
+  registerFloatYen: number,
 ): number {
   return (
     newageYen +
     airpayQrYen +
-    cashTotalYen +
+    cashInDrawerGrossYen +
     taxFreeCardAmountYen -
-    totalSales
+    totalSales -
+    registerFloatYen
   );
 }
 
 /** 与 API 的 `deviationYenFromStoredFields` 一致：按已存字段重算偏差 */
-export function deviationYenFromStoredFields(row: {
-  chargeNightPackYen: number;
-  productSalesYen: number;
-  newageYen: number;
-  airpayQrYen: number;
-  cashTotalYen: number;
-  taxFreeCardAmountYen: number;
-}): number {
-  const ts = totalSalesYen(row.chargeNightPackYen, row.productSalesYen);
+export function deviationYenFromStoredFields(
+  row: {
+    chargeNightPackYen: number;
+    productSalesYen: number;
+    newageYen: number;
+    airpayQrYen: number;
+    cashTotalYen: number;
+    taxFreeCardAmountYen: number;
+  },
+  registerFloatYen: number,
+): number {
+  const ts = totalSalesYenFromStoredTaxIncluded(
+    row.chargeNightPackYen,
+    row.productSalesYen,
+  );
   return deviationYen(
     ts,
     row.newageYen,
     row.airpayQrYen,
     row.cashTotalYen,
     row.taxFreeCardAmountYen,
+    registerFloatYen,
   );
 }

@@ -18,6 +18,7 @@ import {
   safeUnlinkUploadByKey,
 } from '../uploads/upload-storage.util';
 import {
+  chargeNightPackTaxIncludedFromExcluded,
   deviationYen,
   taxFreeCardAmountYen,
   totalSalesYen,
@@ -81,10 +82,12 @@ export class DailyReportsService {
       taxFreeCouponCounts: Record<string, number>;
       newageYen: number;
       airpayQrYen: number;
+      /** レジ実点（底銭込）— ユーザー入力 */
       cashTotalYen: number;
       deviationReason: string | null | undefined;
     },
     allTiers: { id: string; denominationYen: number; active: boolean }[],
+    registerFloatYen: number,
     opts?: { allowInactiveStoredTierKeys?: boolean },
   ) {
     const activeIds = new Set(
@@ -103,6 +106,7 @@ export class DailyReportsService {
       data.airpayQrYen,
       data.cashTotalYen,
       taxFree,
+      registerFloatYen,
     );
     if (dev < 0) {
       const reason = data.deviationReason?.trim();
@@ -168,9 +172,18 @@ export class DailyReportsService {
     assertCountsOnlyActiveTiers(countsNorm, new Set(activeTierIds));
     const counts = canonicalActiveCouponCounts(countsNorm, activeTierIds);
 
+    const settings = await this.prisma.appSettings.findUnique({
+      where: { id: 'default' },
+    });
+    const registerFloatYen = settings?.registerFloatAmount ?? 0;
+
+    const chargeNightPackTaxIncluded = chargeNightPackTaxIncludedFromExcluded(
+      dto.chargeNightPackYen,
+    );
+
     const computed = this.computeAndValidate(
       {
-        chargeNightPackYen: dto.chargeNightPackYen,
+        chargeNightPackYen: chargeNightPackTaxIncluded,
         productSalesYen: dto.productSalesYen,
         taxFreeCouponCounts: counts,
         newageYen: dto.newageYen,
@@ -179,6 +192,7 @@ export class DailyReportsService {
         deviationReason: dto.deviationReason,
       },
       allTiers,
+      registerFloatYen,
       { allowInactiveStoredTierKeys: false },
     );
 
@@ -207,7 +221,7 @@ export class DailyReportsService {
           dto.startMinuteOfDay,
           dto.endMinuteOfDay,
         ),
-        chargeNightPackYen: dto.chargeNightPackYen,
+        chargeNightPackYen: chargeNightPackTaxIncluded,
         productSalesYen: dto.productSalesYen,
         taxFreeCouponCounts: counts as Prisma.InputJsonValue,
         newageYen: dto.newageYen,
@@ -274,13 +288,18 @@ export class DailyReportsService {
       nextCounts = prev;
     }
 
+    const nextChargeNightPackYen =
+      dto.chargeNightPackYen !== undefined
+        ? chargeNightPackTaxIncludedFromExcluded(dto.chargeNightPackYen)
+        : row.chargeNightPackYen;
+
     const next = {
       reportDate: dto.reportDate ?? row.reportDate,
       shiftId: dto.shiftId ?? row.shiftId,
       responsiblePersonId: dto.responsiblePersonId ?? row.responsiblePersonId,
       startMinuteOfDay: dto.startMinuteOfDay ?? row.startMinuteOfDay,
       endMinuteOfDay: dto.endMinuteOfDay ?? row.endMinuteOfDay,
-      chargeNightPackYen: dto.chargeNightPackYen ?? row.chargeNightPackYen,
+      chargeNightPackYen: nextChargeNightPackYen,
       productSalesYen: dto.productSalesYen ?? row.productSalesYen,
       taxFreeCouponCounts: nextCounts,
       newageYen: dto.newageYen ?? row.newageYen,
@@ -303,6 +322,11 @@ export class DailyReportsService {
     if (!shift?.active) throw new BadRequestException('Invalid shift');
     if (!person?.active) throw new BadRequestException('Invalid responsible person');
 
+    const settings = await this.prisma.appSettings.findUnique({
+      where: { id: 'default' },
+    });
+    const registerFloatYen = settings?.registerFloatAmount ?? 0;
+
     const computed = this.computeAndValidate(
       {
         chargeNightPackYen: next.chargeNightPackYen,
@@ -314,6 +338,7 @@ export class DailyReportsService {
         deviationReason: next.deviationReason,
       },
       allTiersForMerge,
+      registerFloatYen,
       { allowInactiveStoredTierKeys: true },
     );
 

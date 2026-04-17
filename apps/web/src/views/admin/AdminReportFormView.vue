@@ -13,6 +13,7 @@ import {
   type TaxTier,
   tiersSortedActive,
   formatCouponCountsLine,
+  chargeNightPackExcludedFromIncluded,
 } from '@/utils/daily-report-calc';
 import { useDailyReportPreview } from '@/composables/useDailyReportPreview';
 import ReportAttachmentPreview from '@/components/ReportAttachmentPreview.vue';
@@ -101,7 +102,7 @@ const couponCountsForPreview = computed(() => {
 const preview = useDailyReportPreview(
   form,
   taxTiers,
-  cashNetForReport,
+  registerFloatAmount,
   couponCountsForPreview,
 );
 
@@ -142,7 +143,9 @@ async function loadExisting(id: string) {
   const em = data.endMinuteOfDay;
   form.startStr = `${String(Math.floor(sm / 60)).padStart(2, '0')}:${String(sm % 60).padStart(2, '0')}`;
   form.endStr = `${String(Math.floor(em / 60)).padStart(2, '0')}:${String(em % 60).padStart(2, '0')}`;
-  form.chargeNightPackYen = data.chargeNightPackYen;
+  form.chargeNightPackYen = chargeNightPackExcludedFromIncluded(
+    data.chargeNightPackYen,
+  );
   form.productSalesYen = data.productSalesYen;
   const raw = (data.taxFreeCouponCounts ?? {}) as Record<string, unknown>;
   serverCouponBaseline.value = parseServerCouponBaseline(raw);
@@ -154,7 +157,7 @@ async function loadExisting(id: string) {
   );
   form.newageYen = data.newageYen;
   form.airpayQrYen = data.airpayQrYen;
-  form.cashInDrawerYen = data.cashTotalYen + registerFloatAmount.value;
+  form.cashInDrawerYen = data.cashTotalYen;
   form.deviationReason = data.deviationReason || '';
   savedDdnPhotoKey.value = data.ddnPhotoKey ?? null;
   savedTaxFreePhotoKey.value = data.taxFreeCardPhotoKey ?? null;
@@ -239,7 +242,6 @@ watch(
 function goToConfirm() {
   const err = validateDailyReportGoToConfirm({
     form,
-    registerFloatAmount: registerFloatAmount.value,
     ddnFile: ddnFile.value,
     savedDdnPhotoKey: savedDdnPhotoKey.value,
     admin: isNew.value
@@ -281,7 +283,7 @@ function buildPayload() {
     ),
     newageYen: form.newageYen,
     airpayQrYen: form.airpayQrYen,
-    cashTotalYen: cashNetForReport.value,
+    cashTotalYen: form.cashInDrawerYen,
     deviationReason: form.deviationReason || undefined,
   };
   if (isNew.value) {
@@ -293,7 +295,6 @@ function buildPayload() {
 async function submit() {
   const errSubmit = validateDailyReportSubmit({
     form,
-    registerFloatAmount: registerFloatAmount.value,
     ddnFile: ddnFile.value,
     savedDdnPhotoKey: savedDdnPhotoKey.value,
     previewDeviationYen: preview.value.deviationYen,
@@ -380,7 +381,6 @@ async function submit() {
         :register-float-amount="registerFloatAmount"
         :start-str="form.startStr"
         :end-str="form.endStr"
-        :charge-night-pack-yen="form.chargeNightPackYen"
         :product-sales-yen="form.productSalesYen"
         :newage-yen="form.newageYen"
         :airpay-qr-yen="form.airpayQrYen"
@@ -409,6 +409,7 @@ async function submit() {
         :active-tiers-sorted="activeTiersSorted"
         :register-float-amount="registerFloatAmount"
         :cash-net-for-report="cashNetForReport"
+        :deviation-yen-preview="preview.deviationYen"
         :saved-ddn-photo-key="savedDdnPhotoKey"
         :saved-tax-free-photo-key="savedTaxFreePhotoKey"
         :ddn-file="ddnFile"

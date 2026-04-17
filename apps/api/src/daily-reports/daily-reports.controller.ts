@@ -32,6 +32,13 @@ function pickUploadExtension(file: Express.Multer.File): string {
   }
   const mt = (file.mimetype || '').toLowerCase();
   if (mt === 'application/pdf') return '.pdf';
+  if (mt === 'text/plain') return '.txt';
+  if (
+    mt === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ) {
+    return '.xlsx';
+  }
+  if (mt === 'application/vnd.ms-excel') return '.xls';
   if (mt === 'image/jpeg' || mt === 'image/jpg') return '.jpg';
   if (mt === 'image/png') return '.png';
   if (mt === 'image/webp') return '.webp';
@@ -67,6 +74,7 @@ class CreateDailyReportDto {
   @Max(1439)
   endMinuteOfDay!: number;
 
+  /** 税抜円（サーバーで×1.1 し税込で保存） */
   @IsInt()
   @Min(0)
   chargeNightPackYen!: number;
@@ -126,6 +134,7 @@ class UpdateDailyReportDto {
   @Max(1439)
   endMinuteOfDay?: number;
 
+  /** 税抜円（サーバーで×1.1 し税込で保存） */
   @IsOptional()
   @IsInt()
   @Min(0)

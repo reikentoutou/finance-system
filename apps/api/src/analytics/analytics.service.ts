@@ -10,14 +10,18 @@ export class AnalyticsService {
 
   async summary(period: Period, anchorDate: string) {
     const { start, end } = tokyoRange(period, anchorDate);
-    const rows = await this.prisma.dailyReport.findMany({
-      where: {
-        status: 'approved' satisfies Prisma.DailyReportWhereInput['status'],
-        reportDate: { gte: start, lte: end },
-      },
-      include: { shift: true, createdBy: { select: { username: true } } },
-      orderBy: [{ reportDate: 'asc' }, { shift: { sortOrder: 'asc' } }],
-    });
+    const [rows, settings] = await Promise.all([
+      this.prisma.dailyReport.findMany({
+        where: {
+          status: 'approved' satisfies Prisma.DailyReportWhereInput['status'],
+          reportDate: { gte: start, lte: end },
+        },
+        include: { shift: true, createdBy: { select: { username: true } } },
+        orderBy: [{ reportDate: 'asc' }, { shift: { sortOrder: 'asc' } }],
+      }),
+      this.prisma.appSettings.findUnique({ where: { id: 'default' } }),
+    ]);
+    const registerFloatYen = settings?.registerFloatAmount ?? 0;
 
     const byShift: Record<
       string,
@@ -37,7 +41,7 @@ export class AnalyticsService {
 
     for (const r of rows) {
       const sid = r.shiftId;
-      const dev = deviationYenFromStoredFields(r);
+      const dev = deviationYenFromStoredFields(r, registerFloatYen);
       if (!byShift[sid]) {
         byShift[sid] = {
           shiftId: sid,

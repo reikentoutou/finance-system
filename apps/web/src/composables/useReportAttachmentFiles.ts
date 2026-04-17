@@ -1,8 +1,15 @@
 import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
-import { isAllowedReportAttachmentFile } from '@/utils/upload-url';
+import {
+  isAllowedReportAttachmentFile,
+  isAllowedTaxFreeReportAttachmentFile,
+} from '@/utils/upload-url';
 
 export const REPORT_PHOTO_ACCEPT = 'image/*,.pdf,application/pdf';
+
+/** 10％クーポン添付（DDN より広い） */
+export const REPORT_TAX_FREE_ACCEPT =
+  'image/*,.pdf,.txt,.xlsx,.xls,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel';
 
 /** DDN / 免税券附件：共用 ref 与校验（网管与管理员日报共用） */
 export function useReportAttachmentFiles() {
@@ -26,8 +33,10 @@ export function useReportAttachmentFiles() {
   function onPickTax(e: Event) {
     const input = e.target as HTMLInputElement;
     const f = input.files?.[0] ?? null;
-    if (f && !isAllowedReportAttachmentFile(f)) {
-      ElMessage.warning('画像または PDF のみ選択できます');
+    if (f && !isAllowedTaxFreeReportAttachmentFile(f)) {
+      ElMessage.warning(
+        '画像・PDF・テキスト（.txt）・Excel（.xlsx / .xls）のみ選択できます',
+      );
       input.value = '';
       taxFile.value = null;
       return;

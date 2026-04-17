@@ -8,6 +8,7 @@
     "build": "pnpm run build:api && pnpm run build:web",
     "build:api": "pnpm --filter @finance/api build",
     "build:web": "pnpm --filter @finance/web build",
+    "test:web": "pnpm --filter @finance/web run test",
     "db:push": "pnpm --filter @finance/api exec prisma db push",
     "db:generate": "pnpm --filter @finance/api exec prisma generate",
     "desktop": "pnpm --filter @finance/desktop start",
