@@ -56,8 +56,8 @@ async function load() {
 
 function goShift(shiftId: string) {
   const ex = byShift.value.get(shiftId);
-  if (ex) router.push(`/wm/report/edit/${ex.id}`);
-  else router.push(`/wm/report/${reportDate.value}/${shiftId}`);
+  if (ex) return;
+  router.push(`/wm/report/${reportDate.value}/${shiftId}`);
 }
 
 onMounted(load);
@@ -111,7 +111,9 @@ function formatYen(n: number): string {
           </div>
         </div>
 
-        <p class="panel-hint">カードを押すと、そのシフトの日報入力・編集へ移動します。</p>
+        <p class="panel-hint">
+          未入力のカードを押すと、そのシフトの日報入力へ移動します。提出済みの日報は網管側では編集できません。
+        </p>
 
         <ul class="shift-grid fs-stagger-children">
           <li v-for="sh in shiftsSorted" :key="sh.id" class="shift-li">
@@ -119,6 +121,7 @@ function formatYen(n: number): string {
               type="button"
               class="shift-card"
               :class="{ 'is-filled': isFilled(sh.id) }"
+              :disabled="isFilled(sh.id)"
               @click="goShift(sh.id)"
             >
               <div class="shift-card-top">
@@ -310,14 +313,14 @@ function formatYen(n: number): string {
 }
 
 @media (hover: hover) {
-  .shift-card:hover {
+  .shift-card:not(:disabled):hover {
     border-color: var(--fs-border-strong);
     box-shadow: var(--fs-shadow-soft);
     transform: translateY(-1px);
   }
 }
 
-.shift-card:active {
+.shift-card:not(:disabled):active {
   transform: translateY(1px);
 }
 
@@ -327,6 +330,9 @@ function formatYen(n: number): string {
 }
 
 .shift-card.is-filled {
+  cursor: default;
+  color: inherit;
+  opacity: 1;
   border-color: color-mix(in srgb, var(--el-color-success) 35%, var(--fs-border));
   background: color-mix(in srgb, var(--el-color-success) 6%, var(--fs-surface));
 }

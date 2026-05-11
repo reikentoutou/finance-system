@@ -2,7 +2,7 @@
 
 财务系统 Web 端：登录、首启向导、网管日报四格、管理员日報/设置/集计与导出等。
 
-**前台机交付（与根 README 一致）**：获取仓库源码、`pnpm install` 与配置 API 后，用根目录 **`pnpm run dev`**（或 `build` + `preview`）启动，**用系统浏览器访问**本前端；不必使用 `apps/desktop`。
+**前台机交付（与根 README 一致）**：获取仓库源码、`pnpm install` 与配置 API 后，用根目录 **`pnpm run dev`**（或 `build` + `preview`）启动，并**用系统浏览器访问**本前端。
 
 ## 开发
 

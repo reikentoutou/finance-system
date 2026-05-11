@@ -8,4 +8,4 @@ alwaysApply: true
 1. **总则**：遵守仓库根目录 **AGENTS.md**（改动范围、风格、提交与文档习惯）。
 2. **`apps/api`**：Nest 模块结构、`PrismaService`；修改 `schema.prisma` 后必须 **`pnpm run db:generate`**，并对目标库 **`pnpm run db:push`** 或 migrate；见 AGENTS.md §3。
 3. **`apps/web`**：Vue 与官方 skills 的细则由 **「Vue 前端 skills」** 规则（匹配 `apps/web/**`）补充；两处冲突时以 **AGENTS.md** 为准。
-4. **交付**：以根 **README.md** 为准——**主交付**为前台机源码 + `pnpm` + 终端 + 浏览器；**`apps/desktop`** 仅在需要 Windows `.exe` 时参与。
+4. **交付**：以根 **README.md** 为准——前台机使用**源码 + `pnpm` + 终端 + 浏览器**完成部署与运行。

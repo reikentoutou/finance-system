@@ -1,62 +1,32 @@
 # 发布说明（Releases）
 
-## 交付方式（与源码为主的前台机）
+## 当前交付方式
 
-**当前默认交付**：前台机获取本仓库**源码**（`git clone`、内网 zip、或 Release 页上的 **Source code (zip/tar.gz)** 等——均为**源码快照**，不是安装程序），在终端执行 **`pnpm install`**、配置 **`apps/api/.env`**、**`pnpm run db:push`** 后，用 **`pnpm run dev`**（或先 **`pnpm run build`** 再按根目录 README 启动 API/Web）运行，**浏览器访问前端**。流程见根 **[README.md](./README.md)**「前台机：源码安装与运行」。
+本项目当前以**源码交付**为准。前台机获取仓库源码后，在终端执行 **`pnpm install`**、配置 **`apps/api/.env`**、运行 **`pnpm run db:push`**，再通过 **`pnpm run dev`** 或 `build + start/preview` 启动，并用**浏览器**访问前端。
 
-下文 **「桌面端（Windows NSIS）」** 为**可选**：仅当仍要向客户提供 **`.exe`** 时启用；否则可忽略该工作流，以源码与 **[CHANGELOG.md](./CHANGELOG.md)** 为主即可。
+对应运行说明见根 **[README.md](./README.md)**，版本变更见 **[CHANGELOG.md](./CHANGELOG.md)**。
 
-## 桌面端（Windows NSIS，可选）
+## GitHub Release 约定
 
-Release 由工作流 **[`.github/workflows/release-desktop-win.yml`](.github/workflows/release-desktop-win.yml)** 在推送 **以 `v` 开头的标签** 时自动执行（例如 `v0.0.1`）。
+- GitHub Release 中的 **Source code (zip/tar.gz)** 是当前标签对应的**源码快照**。
+- 若团队为某个版本创建 Release，应确保 **`CHANGELOG.md`** 已同步更新。
+- 当前仓库不再维护 Electron / Windows `.exe` 安装包发布链路。
 
-也可在 Actions 里 **手动运行**（`workflow_dispatch`）：在 **Run workflow** 中把分支/ref 选为 **已存在的标签**（如 `v0.0.1`），勿选 `main`，否则任务会因 ref 不是 `refs/tags/v*` 而被跳过。
+## 发布前检查清单
 
-### 下载哪个文件？（Release 里为什么有「Source code」）
-
-GitHub **每个 Release 都会自动附带**：
-
-- **Source code (zip)** / **Source code (tar.gz)**：当前标签下仓库的**源码快照**，不是安装程序。
-
-**Windows 安装包**是 CI 额外上传的资产，名称类似：
-
-- **`FinanceSystem-<版本>-Windows-Setup-x64.exe`**（NSIS：内置 API + 前端；**客户机须安装 Node.js**，或设置 `FINANCE_NODE_EXE`）
-- 可选：同版本的 **`.blockmap`**
-
-请在 Release 页面的 **Assets** 列表里找上述 **`.exe`**；**不要**把「Source code」当成安装包。
-
-若 **Assets 里只有 Source code、没有 `.exe`**，说明 **「Release Windows desktop」工作流失败或未运行**：打开 **Actions** 查看该标签对应运行记录的报错（常见原因：依赖安装失败、打包脚本失败等）。
-
-### 发布前检查清单
-
-1. 将 **`apps/desktop/package.json`** 里的 **`version`** 改为与标签一致（去掉前缀 `v`，例如标签 `v1.2.3` → `version` 为 `1.2.3`）。安装包文件名会包含该版本号。
-2. 更新根目录 **`CHANGELOG.md`**：把 `[Unreleased]` 下内容移到新版本小节，并补上链接占位（或按 Keep a Changelog 维护）。
-3. 提交并推送后打标签并推送标签：
+1. 确认本次改动已完成并通过必要验证。
+2. 更新根目录 **`CHANGELOG.md`**，整理本次版本说明。
+3. 提交并推送代码，然后创建并推送版本标签：
 
 ```bash
-git add apps/desktop/package.json CHANGELOG.md
-git commit -m "chore: release desktop v0.0.2"
+git add CHANGELOG.md
+git commit -m "chore: release v0.0.2"
 git push
 
 git tag -a v0.0.2 -m "v0.0.2"
 git push origin v0.0.2
 ```
 
-4. 在 GitHub **Actions** 中查看 **Release Windows desktop** 是否成功；在 **Releases** 页面下载 `FinanceSystem-*-Windows-Setup-x64.exe`。
+## 下载说明
 
-### 产物说明
-
-- **NSIS 安装包**：`FinanceSystem-<version>-Windows-Setup-x64.exe`
-- **blockmap**：与安装包同目录，用于差分更新类场景（若未来接入自动更新会用到）
-
-便携 exe 可在 **Windows** 本机用根目录 `pnpm run pack:desktop:win:portable` 生成（与 NSIS 同源 prepare）；当前 CI 仅上传 NSIS，若需在 Release 附带便携版可再加一步上传。
-
-**zip 包**（`pnpm run pack:bundle:win`，**仅 Windows**）：`apps/desktop/dist-release/FinanceSystem-Portable-Bundle-<版本>.zip`，内含便携 exe 与说明；客户须 **已装 Node** 后解压 **双击 exe**。
-
-### 交付前（实施方）
-
-安装或首次运行后，在 **`%AppData%\FinanceSystem`**（或自定义 **`FINANCE_USER_DATA_DIR`**）编辑 **`.env`**（至少 **`JWT_SECRET`**），再交给最终用户日常使用。
-
-### 权限
-
-默认使用仓库自带的 `GITHUB_TOKEN` 上传 Release，无需额外配置密钥。
+如需部署，请优先使用 Release 页面自带的 **Source code**，或直接从仓库获取源码；不要将 Release 视作预编译桌面安装包分发渠道。

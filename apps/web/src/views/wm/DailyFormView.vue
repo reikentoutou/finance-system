@@ -13,7 +13,6 @@ import {
   type TaxTier,
   tiersSortedActive,
   formatCouponCountsLine,
-  chargeNightPackExcludedFromIncluded,
 } from '@/utils/daily-report-calc';
 import { useDailyReportPreview } from '@/composables/useDailyReportPreview';
 import ReportAttachmentPreview from '@/components/ReportAttachmentPreview.vue';
@@ -25,8 +24,6 @@ import {
 } from '@/composables/useReportAttachmentFiles';
 import {
   syncCouponFormKeys,
-  parseServerCouponBaseline,
-  applyTaxFreeCountsFromRawToForm,
 } from '@/utils/daily-report-form-sync';
 import { httpErrorMessage } from '@/utils/http-error-message';
 
@@ -38,7 +35,7 @@ const saving = ref(false);
 /** 填写 → 确认 */
 const step = ref<'form' | 'confirm'>('form');
 const taxTiers = ref<TaxTier[]>([]);
-/** 编辑时：表单不展示的失效券种等 key 的枚数（预览与保存合并用） */
+/** 网管新建时不带历史券种；保留同一预览合并接口形状 */
 const serverCouponBaseline = ref<Record<string, number>>({});
 /** 设置中的收银底钱（从实点中扣除） */
 const registerFloatAmount = ref(0);
@@ -76,7 +73,7 @@ const form = reactive({
 });
 
 const pageTitle = computed(() =>
-  editId.value ? '日報を編集' : '日報を新規',
+  editId.value ? '日報を提出済' : '日報を新規',
 );
 
 const shiftName = computed(
@@ -133,38 +130,7 @@ async function loadMeta() {
   if (!form.responsiblePersonId && p[0]) form.responsiblePersonId = p[0].id;
 }
 
-async function loadExisting(id: string) {
-  const { data } = await http.get(`/daily-reports/${id}`);
-  startTimeFromPreviousShift.value = false;
-  editId.value = id;
-  shiftId.value = data.shiftId;
-  reportDate.value = data.reportDate;
-  form.responsiblePersonId = data.responsiblePersonId;
-  const sm = data.startMinuteOfDay;
-  const em = data.endMinuteOfDay;
-  form.startStr = `${String(Math.floor(sm / 60)).padStart(2, '0')}:${String(sm % 60).padStart(2, '0')}`;
-  form.endStr = `${String(Math.floor(em / 60)).padStart(2, '0')}:${String(em % 60).padStart(2, '0')}`;
-  form.chargeNightPackYen = chargeNightPackExcludedFromIncluded(
-    data.chargeNightPackYen,
-  );
-  form.productSalesYen = data.productSalesYen;
-  const raw = (data.taxFreeCouponCounts ?? {}) as Record<string, unknown>;
-  serverCouponBaseline.value = parseServerCouponBaseline(raw);
-  syncCouponKeys();
-  applyTaxFreeCountsFromRawToForm(
-    form.taxFreeCouponCounts,
-    raw,
-    activeTiersSorted.value,
-  );
-  form.newageYen = data.newageYen;
-  form.airpayQrYen = data.airpayQrYen;
-  form.cashInDrawerYen = data.cashTotalYen;
-  form.deviationReason = data.deviationReason || '';
-  savedDdnPhotoKey.value = data.ddnPhotoKey ?? null;
-  savedTaxFreePhotoKey.value = data.taxFreeCardPhotoKey ?? null;
-}
-
-/** 新建：同一业务日 sortOrder 上一档已有日报则开始时刻默认为其结束（与责任人无关），可手改 */
+/** 新建：同一日期内 sortOrder 上一档已有日报则开始时刻默认为其结束（与责任人无关），可手改 */
 async function applyStartFromPreviousShift() {
   startTimeFromPreviousShift.value = false;
   try {
@@ -210,7 +176,8 @@ async function tryLoadExistingForNew() {
   );
   const ex = list.find((x) => x.shiftId === shiftId.value);
   if (ex) {
-    await loadExisting(ex.id);
+    ElMessage.warning('提出済みの日報は網管側では編集できません');
+    await router.replace('/wm');
     return;
   }
   resetFormForNewShift();
@@ -224,7 +191,9 @@ async function loadPage() {
   try {
     await loadMeta();
     if (route.name === 'wm-report-edit') {
-      await loadExisting(route.params.id as string);
+      ElMessage.warning('提出済みの日報は網管側では編集できません');
+      await router.replace('/wm');
+      return;
     } else if (route.name === 'wm-report') {
       reportDate.value = String(route.params.date ?? '');
       shiftId.value = String(route.params.shiftId ?? '');
@@ -313,9 +282,7 @@ async function submit() {
   try {
     const payload = buildPayload();
     let id = editId.value;
-    if (id) {
-      await http.put(`/daily-reports/${id}`, payload);
-    } else {
+    if (!id) {
       const res = await http.post<{ id: string }>('/daily-reports', payload);
       id = res.data.id;
       editId.value = id;

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import DailyReportSection from './DailyReportSection.vue';
+
 const props = defineProps<{
   preview: {
     chargeNightPackTaxIncludedYen: number;
@@ -38,19 +40,19 @@ function couponLine(): string {
     <header class="intro">
       <p class="eyebrow">提出前の確認</p>
       <h2 class="title">入力内容の確認</h2>
-      <p class="lede">問題なければ下部の「提出する」で確定してください。修正する場合は上の「入力に戻る」へ。</p>
+      <p class="lede">
+        問題なければ下部の「提出する」で確定してください。修正する場合は上の「入力に戻る」へ。
+      </p>
     </header>
 
-    <section v-if="showWebmasterRow" class="block">
-      <h3 class="block-title">提出元</h3>
+    <DailyReportSection v-if="showWebmasterRow" title="提出元">
       <div class="kv-row">
         <span class="kv-label">網管アカウント</span>
         <span class="kv-value">{{ webmasterLabel ?? '—' }}</span>
       </div>
-    </section>
+    </DailyReportSection>
 
-    <section class="block">
-      <h3 class="block-title">基本</h3>
+    <DailyReportSection title="基本">
       <div class="kv-row">
         <span class="kv-label">シフト</span>
         <span class="kv-value">{{ shiftName }}</span>
@@ -63,14 +65,15 @@ function couponLine(): string {
         <span class="kv-label">勤務時間</span>
         <span class="kv-value kv-mono">{{ startStr }} — {{ endStr }}</span>
       </div>
-    </section>
+    </DailyReportSection>
 
-    <section class="block">
-      <h3 class="block-title">売上・クーポン</h3>
+    <DailyReportSection title="売上・クーポン">
       <div class="kv-grid">
         <div class="kv-pair">
           <span class="kv-sublabel">チャージ・ナイト（税込）</span>
-          <span class="kv-num">{{ yen(preview.chargeNightPackTaxIncludedYen) }}</span>
+          <span class="kv-num">{{
+            yen(preview.chargeNightPackTaxIncludedYen)
+          }}</span>
         </div>
         <div class="kv-pair">
           <span class="kv-sublabel">商品売上（税込）</span>
@@ -99,10 +102,9 @@ function couponLine(): string {
           <span class="kv-num">{{ yen(airpayQrYen) }}</span>
         </div>
       </div>
-    </section>
+    </DailyReportSection>
 
-    <section class="block">
-      <h3 class="block-title">現金</h3>
+    <DailyReportSection title="現金">
       <div class="kv-row">
         <span class="kv-label">レジ実点（底銭込）</span>
         <span class="kv-value">{{ yen(cashInDrawerYen) }}</span>
@@ -115,17 +117,15 @@ function couponLine(): string {
         <span class="kv-label">現金合計（実点 − 底銭）</span>
         <span class="kv-value kv-strong">{{ yen(preview.cashNetYen) }}</span>
       </div>
-    </section>
+    </DailyReportSection>
 
-    <section class="block block-highlight">
-      <h3 class="block-title">偏差（計算）</h3>
+    <DailyReportSection title="偏差（計算）" class="block-highlight">
       <p class="deviation-num">{{ yen(preview.deviationYen) }}</p>
-    </section>
+    </DailyReportSection>
 
-    <section v-if="deviationReason" class="block">
-      <h3 class="block-title">メモ</h3>
+    <DailyReportSection v-if="deviationReason" title="メモ">
       <p class="reason-body">{{ deviationReason }}</p>
-    </section>
+    </DailyReportSection>
   </div>
 </template>
 
@@ -164,23 +164,6 @@ function couponLine(): string {
   max-width: 52ch;
   font-size: 0.88rem;
   line-height: 1.5;
-  color: var(--fs-muted, var(--el-text-color-secondary));
-}
-
-.block {
-  padding: 18px 20px 16px;
-  border: 1px solid var(--fs-border, var(--el-border-color));
-  border-radius: var(--fs-radius-md, 10px);
-  background: var(--fs-surface-elevated, var(--el-bg-color));
-  box-shadow: var(--fs-shadow-soft, none);
-}
-
-.block-title {
-  margin: 0 0 12px;
-  font-size: 0.82rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
   color: var(--fs-muted, var(--el-text-color-secondary));
 }
 

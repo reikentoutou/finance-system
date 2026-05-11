@@ -23,7 +23,6 @@ import {
   taxFreeCardAmountYen,
   totalSalesYen,
 } from '../calc/daily-report-calc';
-import { addCalendarDays } from '../common/calendar-date';
 import { assertValidRange, labelFromMinutes } from './time-range';
 
 /** 与 `TaxFreeCardTier` 表字段一致（显式形状，避免 Client 与 schema 不同步时的推断偏差）。 */
@@ -65,11 +64,28 @@ export class DailyReportsService {
   ) {
     return this.withUploadSerialized(id, async () => {
       const base = '/uploads/';
-      if (files.ddn?.[0]) {
-        await this.setPhotoKey(id, user, 'ddn', base + files.ddn[0].filename);
-      }
-      if (files.taxFree?.[0]) {
-        await this.setPhotoKey(id, user, 'taxFree', base + files.taxFree[0].filename);
+      let ddnApplied = false;
+      let taxFreeApplied = false;
+      try {
+        if (files.ddn?.[0]) {
+          await this.setPhotoKey(id, user, 'ddn', base + files.ddn[0].filename);
+          ddnApplied = true;
+        }
+        if (files.taxFree?.[0]) {
+          await this.setPhotoKey(id, user, 'taxFree', base + files.taxFree[0].filename);
+          taxFreeApplied = true;
+        }
+      } catch (e) {
+        const uploadDir = getUploadDir();
+        await Promise.all([
+          files.ddn?.[0] && !ddnApplied
+            ? safeUnlinkUploadByKey(base + files.ddn[0].filename, uploadDir)
+            : Promise.resolve(),
+          files.taxFree?.[0] && !taxFreeApplied
+            ? safeUnlinkUploadByKey(base + files.taxFree[0].filename, uploadDir)
+            : Promise.resolve(),
+        ]);
+        throw e;
       }
       return this.findOne(user, id);
     });
@@ -264,8 +280,8 @@ export class DailyReportsService {
       taxFreeCouponCounts: Prisma.JsonValue | null;
     };
     const allTiersForMerge = tiersForMergeLoaded as TaxFreeTierRow[];
-    if (user.role === Role.WEBMASTER && row.createdByUserId !== user.userId) {
-      throw new ForbiddenException();
+    if (user.role === Role.WEBMASTER) {
+      throw new ForbiddenException('Submitted reports cannot be edited');
     }
     const activeIds = new Set(
       allTiersForMerge.filter((t) => t.active).map((t) => t.id),
@@ -423,10 +439,8 @@ export class DailyReportsService {
   }
 
   /**
-   * 业务日 = 白1→白2→夜班→次日早班（reportDate 为「白1 开始日」锚点；末班在次日清晨仍用同一 reportDate）。
-   * 默认开始时间 = 上一班已存日报的结束时刻：同 reportDate 内 sortOrder 上一档；若为白1（首档）则取
-   * 「前一业务日」最后一档（即昨日账期内的次日早班）的结束时刻。
-   * 不按填报人过滤，以便网管在管理员已代填上一班次时仍能带出时间。
+   * 业务日 = 当日早番→白1→白2→夜番。默认开始时间取同一 reportDate 内上一班的结束时刻；
+   * 首班没有上一班，不跨日回看。不按填报人过滤，以便网管在管理员已代填上一班次时仍能带出时间。
    */
   async businessDayHint(reportDate: string, shiftId: string) {
     if (!reportDate?.match(/^\d{4}-\d{2}-\d{2}$/) || !shiftId) {
@@ -441,22 +455,14 @@ export class DailyReportsService {
       return { previousShiftEndMinute: null as number | null };
     }
 
-    let prevShiftId: string;
-    let prevReportDate: string;
     if (idx === 0) {
-      if (shifts.length < 2) {
-        return { previousShiftEndMinute: null as number | null };
-      }
-      prevShiftId = shifts[shifts.length - 1]!.id;
-      prevReportDate = addCalendarDays(reportDate, -1);
-    } else {
-      prevShiftId = shifts[idx - 1]!.id;
-      prevReportDate = reportDate;
+      return { previousShiftEndMinute: null as number | null };
     }
+    const prevShiftId = shifts[idx - 1]!.id;
 
     const row = await this.prisma.dailyReport.findUnique({
       where: {
-        reportDate_shiftId: { reportDate: prevReportDate, shiftId: prevShiftId },
+        reportDate_shiftId: { reportDate, shiftId: prevShiftId },
       },
     });
     if (!row) return { previousShiftEndMinute: null as number | null };
@@ -471,6 +477,11 @@ export class DailyReportsService {
     }
     const oldKey =
       field === 'ddn' ? row.ddnPhotoKey : row.taxFreeCardPhotoKey;
+    if (user.role === Role.WEBMASTER && oldKey) {
+      throw new ForbiddenException(
+        'Submitted report attachments cannot be replaced',
+      );
+    }
     const updated = await this.prisma.dailyReport.update({
       where: { id },
       data:

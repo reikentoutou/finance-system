@@ -166,7 +166,7 @@ ${[
       const denomById = await this.loadTierDenomById();
       const sorted = this.sortRowsByShift(data.rows);
       const gt = this.aggregateGrandTotalsFromRows(data.rows, registerFloat);
-      ws.addRow(['業務日（白1 開始日）', data.range.start]);
+      ws.addRow(['業務日（当日）', data.range.start]);
       ws.addRow(['— 合計（全日・シフト縦表） —', '']);
       for (const [k, v] of this.grandTotalPairs(gt)) {
         ws.addRow([k, v]);
@@ -263,7 +263,7 @@ table.shift td:first-child{width:38%;background:#f5f5f5}
 .note{font-size:12px;color:#555;margin:8px 0 16px}
 </style></head><body>
 <h1>${escapeHtml(title)} 集計</h1>
-<p>業務日（白1 開始日）: <strong>${escapeHtml(data.range.start)}</strong></p>
+<p>業務日（当日）: <strong>${escapeHtml(data.range.start)}</strong></p>
 <h2 class="sub">合計（全日・シフト縦表）</h2>
 ${this.verticalGrandTotalsTableHtml(gt)}
 ${blocks ? `<h2 class="sub">シフト別内訳</h2>${blocks}` : ''}

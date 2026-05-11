@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { onMounted, ref, watch, nextTick, computed } from 'vue';
-import * as echarts from 'echarts';
 import { http } from '@/api/http';
 import { todayTokyo } from '@/utils/tokyo';
 import {
@@ -8,6 +7,7 @@ import {
   formatCouponCountsLine,
   type TaxTier,
 } from '@/utils/daily-report-calc';
+import { useEchartsBarChart } from '@/composables/useEchartsBarChart';
 
 type Period = 'day' | 'week' | 'month' | 'quarter' | 'year';
 
@@ -102,7 +102,7 @@ const summaryHeadline = computed(() => {
 });
 
 const chartEl = ref<HTMLDivElement | null>(null);
-let chart: echarts.ECharts | null = null;
+const { setBarData } = useEchartsBarChart(chartEl);
 
 async function load() {
   loading.value = true;
@@ -125,23 +125,16 @@ async function load() {
 }
 
 function renderChart() {
-  if (!chartEl.value || !summary.value) return;
-  if (!chart) chart = echarts.init(chartEl.value);
-  chart.setOption({
-    tooltip: {},
-    xAxis: {
-      type: 'category',
-      data: summary.value.byShift.map((b) => b.shiftName),
-    },
-    yAxis: { type: 'value' },
-    series: [
+  if (!summary.value) return;
+  setBarData(
+    summary.value.byShift.map((b) => b.shiftName),
+    [
       {
         name: '総売上',
-        type: 'bar',
         data: summary.value.byShift.map((b) => b.totalSalesYen),
       },
     ],
-  });
+  );
 }
 
 function cashInDrawer(r: DayReportRow): number {
@@ -204,7 +197,7 @@ async function downloadAggregate(format: 'xlsx' | 'pdf') {
       <h2 class="grand-headline">{{ summaryHeadline }}</h2>
       <p class="range-sub">
         <template v-if="period === 'day'">
-          業務日（白1→白2→夜番→翌早番）アンカー: {{ summary.range.start }} ／ 対象
+          業務日（早番→白1番→白2番→夜番）: {{ summary.range.start }} ／ 対象
           {{ grandTotals.count }} 件
         </template>
         <template v-else>
